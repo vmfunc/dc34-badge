@@ -64,6 +64,51 @@ wrong baud presents as "there is no console", which is exactly how you walk past
 single most informative surface on the board. `tools/serial-log.sh` defaults to
 1000000 for this reason.
 
+## usb, as observed <2026-08-06 15:10>
+
+it **does** enumerate. `1d50:6198`, `Baochip / Baosec-lite`, serial `H88Y1M`, high
+speed, bus powered, 100mA, bcdUSB 2.10, IAD composite. `1d50` is openmoko's shared
+VID, the usual open-hardware allocation. full dump in [../hw/usb-descriptors.txt](../hw/usb-descriptors.txt).
+
+so "baosec-lite" is the product identity, which is the name to search the xous tree
+for, not "badge".
+
+| if | class | what it is | endpoints |
+| --- | --- | --- | --- |
+| 0 | HID | **CTAPHID / FIDO2**, report desc starts `06 d0 f1` (FIDO alliance usage page 0xF1D0), usage 0x01 | 0x81 IN / 0x01 OUT, interrupt, 64 B, bInterval 5 |
+| 1 | HID | keyboard, boot subclass declared | 0x82 IN 32 B bInterval 10, 0x02 OUT 8 B bInterval **100** |
+| 2 | CDC | ACM control, AT-commands protocol | 0x83 IN interrupt 16 B |
+| 3 | CDC data | the console, `/dev/ttyACM0` | 0x84 IN / 0x04 OUT, **bulk, 512 B** |
+
+the fido2 + keyboard + console combination is the "security token, password manager,
+HSM" pitch made concrete: if0 is how it does webauthn, if1 is how it types your
+passwords at you.
+
+> [!wired] two descriptor defects in shipped firmware
+> 1. interface 1 endpoint 0x02 declares `bInterval 100`. for a high-speed interrupt
+>    endpoint the legal range is 1..16 (encoded as 2^(n-1) microframes), so 100 is
+>    out of spec and linux clamps it to 10 with a warning.
+> 2. interface 1 declares **Boot Interface Subclass / Keyboard**, which contractually
+>    means the 8-byte boot report. its actual report descriptor is 1 modifier byte,
+>    56 bits of padding, then a **136-bit NKRO key bitmap**, 25 bytes total. a host
+>    that trusted the boot-protocol claim would mis-parse it.
+>
+> neither is exploitable on its own. both say the usb stack is homegrown and was not
+> checked against a descriptor validator, which is a reason to look harder at the
+> device-side CTAPHID and CDC parsers than you otherwise would.
+
+### console access, on nixos
+
+`/dev/ttyACM0` is `root:dialout 0660` and quaver is not in `dialout`. durable fix in
+the nixfiles:
+
+```nix
+users.users.quaver.extraGroups = [ "dialout" ];
+```
+
+that needs a rebuild and a re-login, so at a con the throwaway is `sudo chmod o+rw
+/dev/ttyACM0`, which evaporates on replug anyway.
+
 ## test points / headers
 
 fill from the physical badge. photograph both sides into `hw/` first.
