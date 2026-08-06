@@ -62,6 +62,22 @@ format, one line per event, no ceremony:
             undefined. see notes/the-flag.md for the ranked kill tests.
 ```
 
+```
+[thu 15:47] replug. badge does NOT re-enumerate. port 3-5 sees a device and keeps
+            trying: "device descriptor read/64, error -110" (timeout), then "device
+            not accepting address, error -62", then "unable to enumerate USB device"
+            after an automatic port power cycle. four attempts, device numbers 29-32.
+[thu 15:48] so: electrically present, not answering enumeration. that is a hung usb
+            stack on the badge, not a cable and not a dead port. the port itself is
+            fine, it detected the device and power-cycled it on its own.
+            the flag is unaffected: RRAM is non-volatile, we never flashed, never
+            entered developer mode, and never wrote any slot. nothing we did can
+            reach the stored value.
+            suspected cause: the lightgenes warning loop was writing several hundred
+            log lines a second when it was unplugged, or the replug was too quick for
+            the rails to collapse.
+```
+
 ## fri
 
 ## sat
