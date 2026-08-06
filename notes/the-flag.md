@@ -254,13 +254,83 @@ consequences that actually change how we work:
 which makes the real question empirical: **what windows does the lightgenes runtime
 open for itself?** whatever they are, we inherit them. that is a sweep, not a guess.
 
-### next
+### measured: the BDMA whitelist is completely empty <2026-08-06 16:30>
 
-- [ ] replug to quiet the lightgenes loop, then re-establish the channel from clean.
-- [ ] work out the lightgene format. `src/bio/lightgenes/mod.rs` is the firmware's own
-      module path; look for a public lightgene example or spec before guessing.
-- [ ] find where the lightgene runtime programs `SFR_FILTER_*`. whatever window it opens
-      for itself is the window we inherit, and `SFR_CONFIG` bits 6/7 sit at `0x50124008`.
+swept with the address baked into the program (there is no host->core data path,
+see below), continuous-push oracle, control program verified live immediately before:
+
+| address | region | verdict |
+| --- | --- | --- |
+| `0x603E_2080` | the flag, RRAM data slot 260 | filtered |
+| `0x6000_0000` | RRAM base | filtered |
+| `0x6100_0000` | SRAM base | filtered |
+| `0x4000_0000` | crypto segment | filtered |
+
+not one window is open. so the lightgenes runtime does **not** leave a DMA window
+configured that we could inherit, and BIO cannot widen its own. **the BDMA route to
+the flag is closed.** that is a real result rather than a failure: it eliminates the
+whole branch and it matches the RTL exactly.
+
+two protocol facts learned the hard way, both worth keeping:
+
+- **there is no host to core data path.** `bio tx` injects into the same queue the
+  core pushes *to*, so a value sent with tx returns on rx without any core seeing it.
+  anything a program needs must be assembled into it. that is why the sweep is one
+  upload per probe.
+- **a value pushed once gets eaten.** the badge's own lightgenes `express` loop pops
+  the same queue, which is where the `errant Rx` warnings come from. only a program
+  that pushes *continuously* keeps a value in the queue long enough for `bio rx`.
+  every one-shot marker scheme silently reads as "nothing happened".
+
+### measured: boot1's `peek` refuses the flag by address
+
+the privileged fallback does not work either, and the refusal is explicit.
+`bao1x-boot/boot1/src/repl.rs:968`:
+
+```rust
+#[cfg(feature = "unsafe-debug")]
+"peek" => {
+    ...
+    if addr >= utralib::HW_RERAM_MEM + bao1x_api::RRAM_STORAGE_LEN
+        && addr < utralib::HW_RERAM_MEM + utralib::HW_RERAM_MEM_LEN
+    {
+        return Err(Error::help("Peek disallowed for security-related sectors"));
+    }
+```
+
+with `HW_RERAM_MEM = 0x6000_0000`, `RRAM_STORAGE_LEN = 0x3D_A000` and
+`HW_RERAM_MEM_LEN = 0x40_0000`, the blocked window is
+**`0x603D_A000` .. `0x6040_0000`**. that begins exactly at `ONEWAY_START` and covers
+the one-way counters, the ACL table, and every data slot including the flag at
+`0x603E_2080`. and the command is feature-gated behind `unsafe-debug`, so it is
+probably not even compiled into the shipped boot1.
+
+so the two obvious doors are both deliberately shut, by two different mechanisms, by
+someone who clearly expected us. that is a good sign about where the real answer is:
+somewhere less direct.
+
+### next, reranked after the two dead ends
+
+1. **the `image` verb.** still completely unexamined and it is the other unpublished
+   command. it takes the same 70-byte chunked base64 framing as `bio` (the loader's own
+   docstring says the format is "identical to send_image.py" and calls the payload
+   "pixel data"). an image path that writes pixels somewhere is a write primitive, and
+   write primitives are worth more than read primitives when the read is filtered.
+2. **write a real lightgene rather than a raw BIO blob.** we have been loading bare
+   programs into a runtime that expects genes. if the runtime configures anything on
+   behalf of a gene it recognises, we only get it by speaking its language.
+   `baochip/bio-sim` has working examples in `sw/`, including `test-ws2812`.
+3. **the A1 ECO aliasing.** "an ECO in the A1 spin of silicon effectively removes the
+   key bank, meaning only data banks exist", and the first 8 nuisance keys "alias with
+   data slots 0..7". an aliasing erratum from a late metal fix is exactly the shape of
+   an access-control hole. work out whether any alias maps a `Fw0` slot onto an open
+   one. this is a paper exercise against the RTL, no hardware needed.
+4. **the ACL table itself** at `0x603D_C410` for slot 260. changing a permission is a
+   different operation from reading a secret and may be guarded differently.
+5. **IRIS.** the badge is explicitly built to be inspected under infrared, and bunnie's
+   own comment concedes RRAM imaging works above 97% accuracy because ECC repairs the
+   rest. it is the one path the design openly admits to. it needs a microscope, so it
+   is a last resort, but it is not a joke.
 
 ## what would be self-inflicted
 

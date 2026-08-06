@@ -177,7 +177,16 @@ def main() -> int:
         return 1
 
     with ser:
+        # prime the link: a stale half-line in the console's buffer makes the first
+        # command land as a fragment, and the reply that comes back belongs to
+        # whatever it completed rather than to us.
+        time.sleep(0.4)
         ser.reset_input_buffer()
+        ser.reset_output_buffer()
+        ser.write(b"\r\n")
+        ser.flush()
+        time.sleep(0.8)
+        ser.read(200000)
         try:
             if args.clear:
                 command(ser, "bio clear", ("CLEAR",))
