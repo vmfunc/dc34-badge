@@ -386,3 +386,78 @@ come to.
 - glitching in a way that trips the on-chip glitch sensors into a state that erases.
 - assuming the badge must be attacked physically because the RTL is public. reading the
   RTL is the cheap path and it is right there.
+
+## the boot1 session, and the conclusion it forces <2026-08-06 16:50>
+
+reached the bootloader REPL via bootwait + a cold boot. what `audit` gives us:
+
+| | |
+| --- | --- |
+| board type | **Oem** (not Baosec, which the offsets we used assume) |
+| firmware | `v0.10.1-0-gbcfdca404`, "Towards 0.10.1 beta-1", stepping **A0** |
+| public serial | `H88Y1M` |
+| UUID | `80d4ec3b-cf510a88-4fc51461-fec8a8f0` |
+| serializer | `0e310c17-b3c4798f-2ce79c1d-ec71f656` |
+| boot0 | key 0/0 (**bao1**) -> `0x60000000` |
+| boot1 | key 2/2 (**beta**) -> `0x60020000` |
+| next stage | key 2/2 (**beta**) -> `0x60060000` |
+| erase proof | uninit or access denied |
+| paranoid / attacks seen | 0/0, 0 |
+| | **CM7 & debug confirmed fused off** |
+| | **Collateral erased** |
+
+full transcript in [../hw/boot1-audit.txt](../hw/boot1-audit.txt), the IFR in
+[../hw/ifr.bin](../hw/ifr.bin) and its hex capture beside it.
+
+`ifr` dumps cleanly. the region is mostly configuration plus ~128 bytes of key/hash
+material at `0x1a0`..`0x220`; the only ASCII is a lot code, `94912066M06T`. **no second
+flag in it.** and the block at `0x180` is `00 00 00 00 82 8c 42 6a 00 ...`, which
+matches `secboot.rs`'s hardcoded reference exactly, confirming CM7 and hardware JTAG
+are fused off. that permanently retires the JTAG question.
+
+### the last idea, and why it dies
+
+`audit` shows boot1 and the next stage are signed with the **beta** key, not
+production. and xous-core ships a public `devkey/`. so: sign our own image, run at full
+privilege, read slot 260. that would win.
+
+it does not work, and `sigcheck.rs:735-775` is why. `erase_secrets()` walks `KEY_SLOTS`,
+erases every one of them, stores the erasure proof, and only *then* advances the
+`DEVELOPER_MODE` counter:
+
+```rust
+// once all secrets are erased, advance the DEVELOPER_MODE state
+if owc.get(DEVELOPER_MODE).unwrap() < 15 {
+    unsafe { owc.inc(DEVELOPER_MODE).unwrap() };
+}
+```
+
+`THE_FLAG_1` is in `KEY_SLOTS`. the erase happens *before* the mode flag is set, so
+there is no window and no ordering trick. a dev-key-signed image destroys the flag as a
+precondition of running. the only keys that would not are `bao1`, `bao2` and `beta`,
+and none of those private keys are public.
+
+boot1's `uf2` command is likewise a **write** path (`repl.rs:164`), bounded to below
+`HW_RERAM_MEM + RRAM_STORAGE_LEN` = `0x603D_A000`, so it cannot even address the flag,
+and using it with an unsigned image is what triggers the erase in the first place.
+
+## conclusion: flag 1 is a physical challenge
+
+every software path is now measured and closed, and they are closed *by design*, each
+by a different mechanism. that is not what an accidentally-hard challenge looks like.
+
+the design tells us what it expects instead. the DC34 badge's entire headline feature is
+that it is **built to be inspected under infrared** with a $180 camera. the flag is
+described as "a test value placed by FT into **the memory array**". and the countermeasure
+bunnie put next to it, `NUISANCE_KEYS`, exists explicitly "to annoy microscopists trying
+to read the secret key by directly imaging the RRAM array", with the concession that
+"any readout with better than 97% accuracy can trivially rely on ECC to repair the
+results".
+
+he told us the attack, the tool, and the pass mark. **flag 1 is meant to be read off the
+die.** that is IRIS work: decap-free IR imaging of the RRAM array at `0x603E_2080`,
+32 bytes, with ECC repairing the tail.
+
+the second flag, hinted in the same comment, is not in any public source or in the IFR.
+it is most likely in the unpublished `dc34_console` firmware, which reinforces that it is
+the *software* half of the pair and flag 1 is the physical half.
