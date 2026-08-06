@@ -148,6 +148,79 @@ two things about it are worth a lot:
       command) sit relative to the default windows?
 - [ ] `image`: entirely unknown, not in public source. get its usage before invoking.
 
+## confirmed on hardware <2026-08-06 15:30..16:00>
+
+**the flag's address.** `DATA_SLOT_START = 0x603E_0000` and `SLOT_ELEMENT_LEN_BYTES = 32`
+(`libs/bao1x-api/src/offsets.rs:80`), so slot 260 is at **`0x603E_2080`**, 32 bytes.
+the per-slot ACL table is at `ACRAM_DATASLOT_START = 0x603D_C000`, 4 bytes per slot, so
+slot 260's ACL entry is at `0x603D_C410`. one-way counters live at `0x603D_A000` and
+`0x603D_B000`. the IFR that boot1's `ifr` command dumps is at `0x6040_0000`.
+
+**the console's real command surface.** `help` under-reports. brute forcing subcommands
+found two that matter, neither documented anywhere public:
+
+```
+bio tx <decimal|0xhex> [repeat]   push a word to the BIO
+bio rx                            pop a word, printed as hex
+```
+
+on an empty queue `bio rx` prints `timeout` and then the sentinel `eb1f646f`. the log
+messages carry their own source line, and that is load bearing: an rx result comes from
+`src/cmds/bio.rs:508` and the tx echo from `:542`. matching on the value alone reads your
+own transmission back and looks exactly like a successful memory read.
+
+**code execution is real and was proven, not assumed.** `probe.S` pushes `0x0BADF00D`
+unconditionally; `echo_inc.S` pops a word, adds one, pushes it back. loading the second
+over the first and draining gave **`badf00e`**. that value can only exist if both
+programs actually ran on a core. so: arbitrary RV32 code on the BIO, bidirectional data
+channel, no flashing, no developer mode, flag untouched.
+
+**the loader's real behaviour**, versus the published `bio-loader`:
+- `bio pad` answers `OK` then `SUCCESS`, and `bio reload` answers `SUCCESS`, so a
+  first-line response match desynchronises. drain until a match instead.
+- chunks must be paced. back to back uploads produce
+  `Input overflow to N, dropping keys!` from the keyboard service and silently lose code.
+- `MAX_CODE_BYTES` is `0xF00` = 3840, so 60 chunks, not the 64 the README implies.
+- the four cores start at different offsets, so a small program at offset 0 leaves the
+  others running zeros. tile the whole space and use `.option norvc` so a core entering
+  mid-block still lands on an instruction boundary.
+
+**the read is blocked, as predicted.** `peek.S` (pop address, `lw`, push word) never
+returns a loaded value. instrumenting it with a marker word showed the marker never
+arrives either, and the core stops popping entirely after the first `lw`. that is the
+signature of a load that never retires: **the BDMA whitelist is empty and the access is
+filtered**, exactly as `ch02-00-bio-overview.md:70` describes. this is now measured
+rather than inferred.
+
+### the thing that changes the picture: `lightgenes`
+
+flooding the queue made the firmware start logging
+`WARN:dc34_console::bio::lightgenes: errant Rx in express (src/bio/lightgenes/mod.rs:167)`.
+
+so the BIO is **not idle hardware we borrowed**. the badge runs its own BIO program
+called a *lightgene*, and `express` is its run loop. `bio tx`/`bio rx` are that
+subsystem's protocol, and our raw words are being fed to it and rejected.
+
+that reframes the whole challenge. the intended path is almost certainly to write a
+*lightgene*, not to hijack the BIO as a bare coprocessor. and the DMA windows that
+matter are whichever ones the lightgene runtime configures for itself.
+
+### state right now
+
+the badge is healthy and the console still answers, but the lightgenes task is stuck in
+a warning loop from the words we left in its queue, several hundred lines a second.
+`bio clear` is accepted and draining the queue does not stop it. **a replug clears it**,
+and a replug is completely safe here: RRAM is non-volatile, nothing was flashed, no
+developer-mode path was touched.
+
+### next
+
+- [ ] replug to quiet the lightgenes loop, then re-establish the channel from clean.
+- [ ] work out the lightgene format. `src/bio/lightgenes/mod.rs` is the firmware's own
+      module path; look for a public lightgene example or spec before guessing.
+- [ ] find where the lightgene runtime programs `SFR_FILTER_*`. whatever window it opens
+      for itself is the window we inherit, and `SFR_CONFIG` bits 6/7 sit at `0x50124008`.
+
 ## what would be self-inflicted
 
 - entering developer mode. see above.
