@@ -36,11 +36,14 @@ full detail, and the parts that are still unconfirmed, in [notes/hardware.md](no
 
 self-imposed, not negotiable. every one exists because someone lost a badge or a day.
 
-1. **do not flash this badge.** the UF2 bootloader (`PROG` + usb → `BAOCHIP` volume) is
-   a *write* path with no readback. there is no baseline dump to take first, and
-   copying `apps.uf2` over the stock app **destroys the challenge**, with no published
-   firmware to restore from. wanting our own code on it *and* the challenge means two
-   badges, not one. `tools/dump-firmware.sh baochip` refuses, on purpose.
+1. **do not flash this badge, and never enter developer mode.** the flag is RRAM data
+   slot 260, written once at final test, and it is a member of `KEY_SLOTS`: the set of
+   keys **erased on entry to developer mode**. developer mode is what running unsigned
+   code requires. so flashing destroys this badge's flag permanently, with nothing to
+   restore it from. our own code *and* the challenge means two badges, not one. chapter
+   and verse in [notes/the-flag.md](notes/the-flag.md). the UF2 bootloader is a write
+   path with no readback either way, and `tools/dump-firmware.sh baochip` refuses on
+   purpose.
 2. **read the source before the disassembly.** the RTL is public and xous is public.
    on an open chip, reversing something you could have read is self-inflicted.
 3. **passive before active.** console and usb descriptors before you write anything,

@@ -31,6 +31,16 @@ format, one line per event, no ceremony:
             a 25-byte NKRO bitmap, not the 8-byte boot report.
 [thu 15:13] BLOCKED on console: /dev/ttyACM0 is root:dialout 0660 and quaver is not
             in dialout. no passwordless sudo. nothing read from the console yet.
+[thu 15:20] cloned xous-core + baochip-1x to ~/workspace/. grepped for "baosec".
+[thu 15:22] FOUND THE CHALLENGE IN THE SOURCE. bao1x-api/src/offsets/baosec.rs:151,
+            THE_FLAG_1 = RRAM data slot 260, PartitionAccess::Fw0, written at FT.
+            "if you can read the original value, you've captured a flag!" plus a
+            second flag elsewhere, not yet located.
+[thu 15:24] LANDMINE: THE_FLAG_1 is in KEY_SLOTS, which is the set erased on entry to
+            developer mode (sigcheck.rs:762, store.rs:303). dev mode is what running
+            unsigned code requires. so flashing this badge destroys its flag with no
+            way back, the value is FT-programmed and not regenerable. see
+            notes/the-flag.md. rule 1 in the readme is now load-bearing, not caution.
 ```
 
 ## fri
