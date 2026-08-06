@@ -1,0 +1,53 @@
+# --- big binary captures: keep locally, never push ---
+# provenance lives in the sibling MANIFEST.md, the bytes do not.
+captures/logic/*
+captures/rf/*
+captures/uart/*
+!captures/**/.gitkeep
+!captures/**/MANIFEST.md
+*.sr
+*.sal
+*.cu8
+*.cf32
+*.iq
+*.wav
+
+# --- ghidra / cutter project state (regenerable, huge, merge-hostile) ---
+re/ghidra/*
+!re/ghidra/.gitkeep
+*.rep/
+*.gpr
+*.lock
+.r2/
+
+# --- firmware working area ---
+# raw dumps ARE committed when small (< ~16MB) .. they are the evidence.
+# unpacked trees are not, binwalk regenerates them from the dump.
+firmware/extracted/*
+!firmware/extracted/.gitkeep
+
+# --- nix / build ---
+result
+result-*
+.direnv/
+# gc root for the pre-warmed offline closure
+.dc34-profile*
+
+# --- python ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# --- editor / os ---
+.DS_Store
+*.swp
+*~
+.idea/
+.vscode/
+
+# --- secrets: nothing with a key in it, ever ---
+*.pem
+*.key
+.env
+secrets/
