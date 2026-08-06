@@ -109,6 +109,35 @@ users.users.quaver.extraGroups = [ "dialout" ];
 that needs a rebuild and a re-login, so at a con the throwaway is `sudo chmod o+rw
 /dev/ttyACM0`, which evaporates on replug anyway.
 
+## power, and why unplugging does not reset it
+
+the badge carries an **AXP2101 PMU with a battery**, configured in
+`libs/bao1x-hal/src/axp2101.rs`. so **pulling the USB cable does not power the badge
+off**: it keeps running on the battery, and a wedged firmware stays wedged across a
+replug. this cost us a diagnostic loop.
+
+the button press timings the firmware programs (`axp2101.rs:373-381`):
+
+```rust
+// pwron 16s to shut the enable
+i2c.i2c_write(AXP2101_DEV, REG_PMUCOMMON, &[0b00110100]).unwrap();
+// level timings: irq 1.5s, offlevel 6s, onlevel 1s
+i2c.i2c_write(AXP2101_DEV, REG_LEVELTIMES, &[0b0_01_01_10]).unwrap();
+```
+
+| press | effect |
+| --- | --- |
+| ~1 s | power **on** (onlevel) |
+| 1.5 s | interrupt to firmware (irq) |
+| **6 s** | forced power **off** (offlevel). this is the reset you want |
+| 16 s | hard kill, shuts the enable outright |
+
+`REG_BATFET` is set to `0`, "disable on pwroff", so a real power-off actually
+disconnects the battery rather than leaving rails floating. that is what makes the 6
+second hold a genuine cold boot.
+
+none of this touches RRAM, so none of it can affect the flag.
+
 ## test points / headers
 
 fill from the physical badge. photograph both sides into `hw/` first.
