@@ -213,6 +213,47 @@ a warning loop from the words we left in its queue, several hundred lines a seco
 and a replug is completely safe here: RRAM is non-volatile, nothing was flashed, no
 developer-mode path was touched.
 
+### the filter, from the RTL rather than the prose <2026-08-06 16:05>
+
+`baochip-1x/rtl/modules/bio_bdma/rtl/bio_bdma.sv:2470`, module `axil_filter`:
+
+```systemverilog
+bounds_unchecked[k] = base[k] + length[k];
+bounds[k] = bounds_unchecked[k] > 21'h0_FFFFF ? 20'hFFFFF : bounds_unchecked[k][19:0];
+match_read[k] = (s_axi_araddr[31:12] >= base[k]) && (s_axi_araddr[31:12] < bounds[k]);
+...
+allow_read = |match_read | disable_filter;
+assign m_axi_araddr = allow_read ? s_axi_araddr : gutter;
+```
+
+the important part is the last line. **a filtered access is not rejected, it is
+redirected.** the transaction still goes out, with its address replaced by `gutter`.
+there is no error response and no abort.
+
+and `gutter` is itself a software register: `sfr_mem_gutter` at APB offset `0xA0`,
+`sfr_peri_gutter` at `0xA4`, both reset to zero.
+
+so the default behaviour of an out-of-window read is: **redirect to address
+0x00000000**. if nothing is mapped there, the AXI read never gets a response, and the
+BIO core waits on it forever. that is a complete, RTL-grounded explanation of what we
+measured: the core swallowed one address and never produced another word.
+
+consequences that actually change how we work:
+
+- an out-of-window read **hangs the core permanently**. so an address sweep has to
+  treat a timeout as "filtered" and reload the program before the next probe. one
+  probe per load.
+- with base and length both zero at reset, `addr >= 0 && addr < 0` is false for every
+  address, so an unconfigured filter rejects everything. the whitelist really is empty
+  by default, as documented.
+- the only way a BIO core reads RRAM is if the host opened a window covering page
+  `0x603E2`. the host is the only thing that can write `SFR_FILTER_*`, and BIO's own
+  peripheral accesses go through the second filter instance, so it cannot reach its own
+  configuration to widen it.
+
+which makes the real question empirical: **what windows does the lightgenes runtime
+open for itself?** whatever they are, we inherit them. that is a sweep, not a guess.
+
 ### next
 
 - [ ] replug to quiet the lightgenes loop, then re-establish the channel from clean.
