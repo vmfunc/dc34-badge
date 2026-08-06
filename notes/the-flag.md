@@ -79,6 +79,75 @@ interesting.
 4. **`hazardous-debug`.** the four-byte leak at store.rs:303 is behind that feature
    gate. confirm it is off in the shipped build before assuming it is off.
 
+## the BIO path <2026-08-06 15:25>
+
+the live console (`[console] ` prompt, userland `bao-console`) offers
+`echo, ver, test, image, bio`. **`image` and `bio` do not exist in the public
+bao-console source**, which is current to 2026-08-03. so the badge runs verbs that
+were not published, and those are the challenge surface.
+
+`bio` is documented after all, just in a different repo: `baochip/bio-loader`, "load
+BIO programs into devices with BIO console support". its protocol is plain text over
+this same serial port:
+
+```
+bio <base64>       chunk upload
+bio pin <n> [n..]  set I/O pin list
+bio clk <hz>       set clock rate
+bio clear          wipe stored program
+bio reload         -> "BIO load successful"
+bio ready          -> "OK"
+```
+
+**this is arbitrary code execution on the four PicoRV32 BIO cores, over the console,
+with no flashing and no developer mode.** which means it does not touch the flag.
+that is the single most important property of this path: it is the only code-execution
+primitive we have found that is not self-destructive. `baochip/bio-sim` produces
+`.bin` files that the loader takes directly.
+
+### what stops BIO reading the flag, and where that might give
+
+BIO cores reach the SoC bus through the BDMA extension, and bunnie states the defense
+outright in `docs/src/ch02-00-bio-overview.md:70`:
+
+> "access to main memory is blocked by a whitelist, which by default is empty. So,
+> before attempting to use the BDMA feature, one must first declare which regions of
+> memory the BIO is allowed to access. **This also helps prevent abuse of the BDMA as a
+> method for bypassing host CPU security features.**"
+
+so the whitelist is the only thing between a BIO program and the key slots. it is four
+base/bounds pairs, expressed in 4KiB pages, at `0x501240e0`..`0x501240fc`.
+
+two things about it are worth a lot:
+
+1. **the filter can simply be switched off.** `SFR_CONFIG` (`0x50124008`) bit 6 is
+   `DISABLE_FILTER_PERI` and bit 7 is `DISABLE_FILTER_MEM`, documented as "when 1,
+   disables the host ... range whitelist filter. Setting this is strongly discouraged
+   in secure applications." so the whole question becomes: can a BIO core reach
+   `0x50124008`? in the reference setup it deliberately cannot, window 1 is
+   `base 0x4000_0000`, `bounds = HW_BIO_BDMA_BASE - 0x4000_0000`, which stops exactly
+   at the BIO's own register block. that exclusion is not an accident, it exists to
+   stop BIO reprogramming its own filter. **if the badge's unpublished `bio` verb sets
+   up a window that runs past `0x5012_4000`, the filter disables itself and the whole
+   bus is open.**
+2. **there is a documented silicon erratum in the filter registers.** from
+   `ch02-00-bio-overview.md:1460`: *"there is a bug in the Baochip-1x which prevents the
+   `FILTER` series of registers from being read back. Writes succeed, but the value
+   returned when inspecting the FILTER registers is undefined."* undefined readback
+   means no software can verify its own filter, and any read-modify-write against those
+   registers produces an arbitrary window rather than the intended one. that is a
+   classic shape for an access-control hole.
+
+### kill tests, in order
+
+- [ ] what windows does the badge's `bio` verb program? if it opens anything at or past
+      `0x5012_4000`, go straight for `SFR_CONFIG` bits 6/7 from a BIO core.
+- [ ] does any code path do a read-modify-write on `SFR_FILTER_*`? given the erratum
+      that yields an attacker-influenced window.
+- [ ] where do the RRAM key slots and the IFR region (`0x6040_0000`, per boot1's `ifr`
+      command) sit relative to the default windows?
+- [ ] `image`: entirely unknown, not in public source. get its usage before invoking.
+
 ## what would be self-inflicted
 
 - entering developer mode. see above.

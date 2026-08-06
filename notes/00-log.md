@@ -41,6 +41,25 @@ format, one line per event, no ceremony:
             unsigned code requires. so flashing this badge destroys its flag with no
             way back, the value is FT-programmed and not regenerable. see
             notes/the-flag.md. rule 1 in the readme is now load-bearing, not caution.
+[thu 15:18] console open. azzie chmod'd /dev/ttyACM0. 20s passive capture: silent.
+[thu 15:19] read the boot1 REPL command table BEFORE typing anything, which was worth
+            it: it has "self_destruct void_my_warrantee", permanent brick, no returns.
+            do not go near it. boot1 also has "peek" and "ifr" (dumps 0x6040_0000+0x400,
+            with deliberate black_box asserts to stop it being a glitchable dump
+            primitive, which tells you what bunnie expected people to try).
+[thu 15:20] bare newline -> prompt is "[console] ". this is userland bao-console, not
+            the boot1 REPL. `help` -> "Commands: echo, ver, test, image, bio".
+[thu 15:22] "image" and "bio" are NOT in the public bao-console source (clone current
+            to 2026-08-03, no dc34 branch on the remote). unpublished verbs = the
+            challenge surface.
+[thu 15:24] bio is documented in a sibling repo, baochip/bio-loader: plain-text upload
+            of BIO programs over this same port. ARBITRARY CODE EXECUTION on the four
+            picorv32 cores with no flash and no dev mode, so it does not cost the flag.
+[thu 15:26] BIO's bus access is gated by a 4-entry page whitelist at 0x501240e0.
+            SFR_CONFIG bit6/bit7 disable that filter outright, and the reference window
+            setup deliberately stops at HW_BIO_BDMA_BASE so BIO can't reach its own
+            config. plus a documented erratum: FILTER regs are write-only, readback is
+            undefined. see notes/the-flag.md for the ranked kill tests.
 ```
 
 ## fri
