@@ -23,9 +23,17 @@ the single most common way to waste two hours is disassembling at the wrong base
 write the base address here the moment you are sure, and say *why* you are sure
 (vector table pointing into a sane range, string cross-refs resolving, etc).
 
-- arch:
-- base:
-- endianness:
+- arch: **rv32imac** (VexRiscv). the BIO coprocessor cores are PicoRV32, also rv32.
+- base: read it out of the UF2 header rather than guessing, `tools/uf2.py info`.
+- endianness: little.
+
+ghidra handles RISC-V natively, pick the `RISCV:LE:32:RV32IC` variant and check that
+compressed instructions decode, `c.*` mnemonics everywhere is the tell that the `c`
+extension is being honoured.
+
+xous is rust, so expect the rust symbol mangling (`_ZN...17h<hash>E`) and fat panic
+strings carrying source paths. those paths are free structure, they tell you the crate
+layout before you read a single instruction.
 
 ## interesting strings / symbols
 

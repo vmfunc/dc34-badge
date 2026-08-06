@@ -2,12 +2,14 @@
 # timestamped serial capture into captures/uart/. read-only by default, so you can
 # leave it running on a second terminal all con without touching the target.
 #
-#   ./tools/serial-log.sh /dev/ttyACM0 115200
+#   ./tools/serial-log.sh /dev/ttyACM0 1000000
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 port="${1:-/dev/ttyACM0}"
-baud="${2:-115200}"
+# the badge's xous console is 1000000 8n1, not the usual 115200. wrong baud looks
+# exactly like "the badge has no console", which is how you skip past the console.
+baud="${2:-1000000}"
 
 if [[ ! -e "$port" ]]; then
   echo "error: $port not present. plugged in? check 'dmesg | tail' or 'ls /dev/tty*'" >&2

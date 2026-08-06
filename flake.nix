@@ -44,11 +44,19 @@
             file
             hexyl
 
-            # --- microcontroller flashing / debug ---
+            # --- riscv: the badge is a baochip-1x (vexriscv rv32imac + picorv32 BIO) ---
+            # xous builds against the custom target riscv32imac-unknown-xous-elf, which
+            # is not an upstream rust target, so the toolchain has to come from rustup
+            # rather than nixpkgs' pinned rustc.
+            rustup
+            pkgsCross.riscv32-embedded.buildPackages.gcc # rv32 objdump/readelf/gcc/gdb
+            gdb
+
+            # --- other badges / SAOs on the floor are still arm+xtensa ---
             openocd
-            probe-rs-tools # rp2040 / stm32 / nrf over cmsis-dap, swd
-            picotool # rp2040: info, save, load, reboot
-            esptool # esp32: flash_id, read_flash, otp
+            probe-rs-tools
+            picotool # rp2040
+            esptool # esp32
             dfu-util
 
             # --- serial / logic / bus ---
