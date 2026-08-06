@@ -334,6 +334,52 @@ somewhere less direct.
    rest. it is the one path the design openly admits to. it needs a microscope, so it
    is a last resort, but it is not a joke.
 
+## the boot1 REPL, and what it costs to get there <2026-08-06 16:55>
+
+boot1 prints its own command list at `repl.rs:1135`:
+
+> altboot, audit, boot, boardtype, bootwait, echo, idmode, ifr, localecho, lockdown,
+> paranoid, require-pq, reset, self_destruct, skipping, uf2, usb_speed
+
+cross-referencing the `#[cfg]` gates, what actually ships versus what is compiled out:
+
+| available in the shipped boot1 | gated out |
+| --- | --- |
+| `ifr`, `audit`, `boardtype`, `idmode`, `reset`, `boot`, `localecho`, `bootwait`, `paranoid`, `skipping`, `altboot`, `lockdown`, `self_destruct`, `ate`, `atecheck`, `usb_speed` | `peek` (`unsafe-debug`), `rand_collateral` and `publock` (`test-boot0-keys`), `pq`, `qe`, `bogomips` |
+
+so **`peek` is almost certainly not even present**, which retires that idea entirely, and
+`rand_collateral` (the one thing that would clear COLLATERAL's ACL for us) is gated out
+too. that closes the easy version of [[acl-aliasing]].
+
+`ifr` does ship. it dumps `0x6040_0000` for `0x400` bytes, which per `rrc.sv` is where
+the RRAM partition and permission configuration lives (`nvrcfgdata.cfgrrsub`, the
+`PM_READ_DIS` / `PM_WRITE_DIS` bytes). that is the access-control configuration itself,
+which is worth reading even though it is not the flag.
+
+### the cost, which is why this is not an automatic yes
+
+boot1 is entered by holding a button at power-on, but reaching its prompt reliably means
+enabling `bootwait`, and **bootwait is stored in a one-way counter**
+(`repl.rs:456-490`): enable and disable both work by *incrementing* until the coded
+value lands on the state you want.
+
+```rust
+} else if args[0] == "enable" {
+    while one_way.get_decoded::<BootWaitCoding>()... != BootWaitCoding::Enable {
+        one_way.inc_coded::<BootWaitCoding>().unwrap();
+    }
+```
+
+one-way counters do not go backwards and they are finite. elsewhere in the tree the
+developer-mode counter is bounds-checked at `< 15`. so every enable/disable cycle
+permanently consumes part of a budget, and if the counter saturates while bootwait is
+*enabled*, this badge waits at the bootloader on every power-on for the rest of its life.
+recoverable in the sense that `boot` still boots it, but it is a permanent change to
+azzie's badge.
+
+**this one is her call, not mine.** it is the first genuinely irreversible thing we have
+come to.
+
 ## what would be self-inflicted
 
 - entering developer mode. see above.
