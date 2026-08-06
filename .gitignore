@@ -17,7 +17,9 @@ re/ghidra/*
 !re/ghidra/.gitkeep
 *.rep/
 *.gpr
-*.lock
+# ghidra's own project locks only. NOT flake.lock, which is the whole point of
+# being able to rebuild this toolchain offline.
+re/ghidra/**/*.lock
 .r2/
 
 # --- firmware working area ---

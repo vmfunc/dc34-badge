@@ -28,7 +28,8 @@
             numpy
           ]);
         in
-        pkgs.mkShell {
+        {
+          default = pkgs.mkShell {
           name = "dc34";
 
           packages = with pkgs; [
@@ -81,6 +82,7 @@
             echo "dc34 shell up. root=$DC34_ROOT"
             echo "dump firmware before you poke it. firmware/MANIFEST.md is the ledger."
           '';
+          };
         });
     };
 }
