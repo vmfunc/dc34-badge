@@ -83,3 +83,22 @@ format, one line per event, no ceremony:
 ## sat
 
 ## sun
+
+```
+[thu 16:20] bootwait ENABLED (authorised). one-way counter spent. `test bootwait
+            check` -> true. no software reset verb exists: brute-forced 47 plausible
+            top-level console verbs, zero hits beyond echo/ver/test/image/bio. so
+            reaching boot1 needs a physical 6s power-button hold.
+[thu 16:35] `image` fully mapped: 32 chunks x 64 bytes = 2048 bytes = 128x128 mono,
+            the sh1107 panel. sequence enforced, every out-of-range index rejected.
+            the u16 chunk index is NOT an arbitrary write offset. idea dead.
+            it does give us the screen as an output channel.
+[thu 16:45] CTAPHID on /dev/hidraw0 (interface 1.0, logind uaccess, no root needed):
+            INIT works and allocates channels (0x3, 0x4, 0x5 across attempts), reports
+            protocol 2, device 1.0.0, caps 0x05 = WINK|CBOR. but PING, WINK, MSG and
+            every CBOR command return NOTHING, even at 6s timeouts. the fido stack is
+            an INIT-only stub. dead end, and notably the advertised caps are a lie.
+[thu 16:50] state of play: every software path we control is exhausted except boot1.
+            BDMA filtered, image bounded, ctap stubbed, no acl-write opcode in the
+            keystore, no software reset. boot1 needs a power cycle.
+```
