@@ -88,7 +88,8 @@
             export DC34_ROOT="$PWD"
             export GHIDRA_INSTALL_DIR="${pkgs.ghidra}/lib/ghidra"
             echo "dc34 shell up. root=$DC34_ROOT"
-            echo "dump firmware before you poke it. firmware/MANIFEST.md is the ledger."
+            echo "badge = baochip-1x (rv32imac, xous). console is 1000000 8n1."
+            echo "DO NOT FLASH IT: UF2 is write-only, flashing destroys the ctf app."
           '';
           };
         });
