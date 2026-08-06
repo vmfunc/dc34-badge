@@ -1,0 +1,74 @@
+dc34 shell up. root=/home/quaver/workspace/dc34-ctf
+badge = baochip-1x (rv32imac, xous). console is 1000000 8n1.
+DO NOT FLASH IT: UF2 is write-only, flashing destroys the ctf app.
+# dc34 badge state capture, 2026-08-06 16:17:19 
+# badge serial H88Y1M, captured over the xous console at 1000000 8n1
+# NOTE: this is *observable state*, not a firmware image. the badge cannot be
+#       dumped: UF2 is write-only, BDMA is filtered, boot1 peek refuses the
+#       security sectors. see notes/the-flag.md.
+
+
+===== help =====
+[console] help
+Commands: echo, ver, test, image, bio
+
+===== ver =====
+[console] ver
+ver [xous]
+
+===== test =====
+[console] test
+test [proc] [freemem] [interrupts] [bootwait]; see code for other test commands.
+
+===== test proc =====
+[console] test proc
+INFO:dc34_console::cmds::test: Process listing: (src/cmds/test.rs:126)
+INFO:dc34_console::cmds::test: Process 1 state: Ready(100)  TID: 2  Memory mapping: (satp: 0x8046116d, mode: 1, ASID: 1, PPN: 6116d000) conns:0/32 kernel (src/cmds/test.rs:128)
+INFO:dc34_console::cmds::test: Process 2 state: Sleeping  TID: 0  Memory mapping: (satp: 0x808611ba, mode: 1, ASID: 2, PPN: 611ba000) conns:3/32 xous-swapper (src/cmds/test.rs:128)
+INFO:dc34_console::cmds::test: Process 3 state: Sleeping  TID: 2  Memory mapping: (satp: 0x80c611b3, mode: 1, ASID: 3, PPN: 611b3000) conns:5/32 keystore (src/cmds/test.rs:128)
+INFO:dc34_console::cmds::test: Process 4 state: Sleeping  TID: 2  Memory mapping: (satp: 0x810611ac, mode: 1, ASID: 4, PPN: 611ac000) conns:5/32 xous-ticktimer (src/cmds/test.rs:128)
+INFO:dc34_console::cmds::test: Process 5 state: Ready(1000)  TID: 3  Memory mapping: (satp: 0x814611a5, mode: 1, ASID: 5, PPN: 611a5000) conns:3/32 xous-log (src/cmds/test.rs:128)
+INFO:dc34_console::cmds::test: Process 6 state: Sleeping  TID: 2  Memory mapping: (satp: 0x8186119e, mode: 1, ASID: 6, PPN: 6119e000) conns:2/32 xous-names (src/cmds/test.rs:128)
+INFO:dc34_console::cmds::test: Process 7 state: Ready(100)  TID: 2  Memory mapping: (satp: 0x81c61197, mode: 1, ASID: 7, PPN: 61197000) conns:7/32 usb-bao1x (src/cmds/test.rs:128)
+INFO:dc34_console::cmds::test: Process 8 state: Sleeping  TID: 6  Memory mapping: (satp: 0x82061190, mode: 1, ASID: 8, PPN: 61190000) conns:20/32 bao1x-hal-service (src/cmds/test.rs:128)
+INFO:dc34_console::cmds::test: Process 9 state: Sleeping  TID: 2  Memory mapping: (satp: 0x82461189, mode: 1, ASID: 9, PPN: 61189000) conns:5/32 modals (src/cmds/test.rs:128)
+INFO:dc34_console::cmds::test: Process 10 state: Sleeping  TID: 5  Memory mapping: (satp: 0x82861182, mode: 1, ASID: 10, PPN: 61182000) conns:7/32 pddb (src/cmds/test.rs:128)
+INFO:dc34_console::cmds::test: Process 11 state: Sleeping  TID: 3  Memory mapping: (satp: 0x82c6117b, mode: 1, ASID: 11, PPN: 6117b000) conns:10/32 bao-video (src/cmds/test.rs:128)
+INFO:dc34_console::cmds::test: Process 12 state: Running(0)  TID: 3  Memory mapping: (satp: 0x83061174, mode: 1, ASID: 12, PPN: 61174000) conns:19/32 dc34-console (src/cmds/test.rs:128)
+INFO:dc34_console::cmds::test: Process 13 state: Ready(100)  TID: 2  Memory mapping: (satp: 0x83461166, mode: 1, ASID: 13, PPN: 61166000) conns:28/32 dc34-vault (src/cmds/test.rs:128)
+
+===== test freemem =====
+[console] test freemem
+INFO:dc34_console::cmds::test: RAM usage: (src/cmds/test.rs:138)
+INFO:dc34_console::cmds::test:     PID   1:  164 k kernel (src/cmds/test.rs:140)
+INFO:dc34_console::cmds::test:     PID   2:  372 k xous-swapper (src/cmds/test.rs:140)
+INFO:dc34_console::cmds::test:     PID   3:   48 k keystore (src/cmds/test.rs:140)
+INFO:dc34_console::cmds::test:     PID   4:   60 k xous-ticktimer (src/cmds/test.rs:140)
+INFO:dc34_console::cmds::test:     PID   5:   68 k xous-log (src/cmds/test.rs:140)
+INFO:dc34_console::cmds::test:     PID   6:   52 k xous-names (src/cmds/test.rs:140)
+INFO:dc34_console::cmds::test:     PID   7:   80 k usb-bao1x (src/cmds/test.rs:140)
+INFO:dc34_console::cmds::test:     PID   8:  148 k bao1x-hal-service (src/cmds/test.rs:140)
+INFO:dc34_console::cmds::test:     PID   9:   48 k modals (src/cmds/test.rs:140)
+INFO:dc34_console::cmds::test:     PID  10:  148 k pddb (src/cmds/test.rs:140)
+INFO:dc34_console::cmds::test:     PID  11:   88 k bao-video (src/cmds/test.rs:140)
+INFO:dc34_console::cmds::test:     PID  12:  152 k dc34-console (src/cmds/test.rs:140)
+INFO:dc34_console::cmds::test:     PID  13:  556 k dc34-vault (src/cmds/test.rs:140)
+INFO:dc34_console::cmds::test: 1984 k total (src/cmds/test.rs:140)
+
+===== test interrupts =====
+[console] test interrupts
+INFO:dc34_console::cmds::test: Interrupt handlers: (src/cmds/test.rs:150)
+INFO:dc34_console::cmds::test:   IRQ | Process | Handler | Argument (src/cmds/test.rs:152)
+INFO:dc34_console::cmds::test:     1:  usb-bao1x @ 341b8 Some(20001a60) (src/cmds/test.rs:152)
+INFO:dc34_console::cmds::test:     2:  bao1x-hal-service @ 2b138 Some(20000900) (src/cmds/test.rs:152)
+INFO:dc34_console::cmds::test:     5:  xous-log @ 1b2da Some(20000008) (src/cmds/test.rs:152)
+INFO:dc34_console::cmds::test:     8:  bao-video @ 6ace4 Some(601f1540) (src/cmds/test.rs:152)
+INFO:dc34_console::cmds::test:     10:  bao1x-hal-service @ 32cce Some(200004b0) (src/cmds/test.rs:152)
+INFO:dc34_console::cmds::test:     11:  keystore @ 24cb2 Some(20000008) (src/cmds/test.rs:152)
+INFO:dc34_console::cmds::test:     20:  xous-ticktimer @ 1fb32 Some(7fffbec8) (src/cmds/test.rs:152)
+INFO:dc34_console::cmds::test:     30:  bao1x-hal-service @ 32c2e Some(60096000) (src/cmds/test.rs:152)
+
+===== test bootwait check =====
+[console] test bootwait check
+bootwait is false
+bootwait is false

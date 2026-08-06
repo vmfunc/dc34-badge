@@ -320,14 +320,16 @@ somewhere less direct.
    programs into a runtime that expects genes. if the runtime configures anything on
    behalf of a gene it recognises, we only get it by speaking its language.
    `baochip/bio-sim` has working examples in `sw/`, including `test-ws2812`.
-3. **the A1 ECO aliasing.** "an ECO in the A1 spin of silicon effectively removes the
+3. **[[acl-aliasing|the ACL read index aliases slot 260 onto slot 261]]** .. now the
+   strongest lead, and arithmetically confirmed. see its own note.
+4. **the A1 ECO aliasing.** "an ECO in the A1 spin of silicon effectively removes the
    key bank, meaning only data banks exist", and the first 8 nuisance keys "alias with
    data slots 0..7". an aliasing erratum from a late metal fix is exactly the shape of
    an access-control hole. work out whether any alias maps a `Fw0` slot onto an open
    one. this is a paper exercise against the RTL, no hardware needed.
-4. **the ACL table itself** at `0x603D_C410` for slot 260. changing a permission is a
+5. **the ACL table itself** at `0x603D_C410` for slot 260. changing a permission is a
    different operation from reading a secret and may be guarded differently.
-5. **IRIS.** the badge is explicitly built to be inspected under infrared, and bunnie's
+6. **IRIS.** the badge is explicitly built to be inspected under infrared, and bunnie's
    own comment concedes RRAM imaging works above 97% accuracy because ECC repairs the
    rest. it is the one path the design openly admits to. it needs a microscope, so it
    is a last resort, but it is not a joke.
