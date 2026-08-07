@@ -246,3 +246,23 @@ format, one line per event, no ceremony:
                 on **origin/dev**. the `rev` pin only binds unpatched deps; the [patch]
                 paths expect a current dev checkout. xous-core now at 5d5bbbf (dev).
 ```
+
+```
+[thu 21:3x] image build got all the way to signing, twice, then died with a message
+            that discards its own cause. patched swap_writer.rs:175 to surface it:
+              "Can't sign swap image: SemVer::from_git: no major version"
+            xous-create-image stamps a version derived from `git describe`, and my
+            xous-core checkout is a SHALLOW DETACHED FETCH_HEAD with no tags, so
+            describe has nothing to name. fix: `git tag v0.10.1` locally.
+            worth noting the badge's own audit reports Semver v0.10.1-0-gbcfdca404,
+            so the tag shape is real, not invented.
+            also: --no-pq made no difference, which was the right experiment to rule
+            out post-quantum signing as the cause before chasing keys further.
+[thu 21:3x] the base image otherwise builds clean and lays out the exact process table
+            the real badge reports: kernel, swapper PID2, keystore PID3, ticktimer,
+            log, names, usb-bao1x, hal-service, modals, pddb, bao-video.
+            xous std came prebuilt from betrusted's rust fork via
+            `cargo xtask install-toolchain` (riscv32imac-unknown-xous 1.97.1), so no
+            -Z build-std and no compiling std from source. my nightly detour was
+            unnecessary.
+```
