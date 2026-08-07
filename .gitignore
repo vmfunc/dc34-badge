@@ -53,3 +53,6 @@ venv/
 *.key
 .env
 secrets/
+
+# rust build artifacts from the vendored firmware
+vendor/**/target/
