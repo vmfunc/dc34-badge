@@ -189,3 +189,36 @@ format, one line per event, no ceremony:
             changing them means building firmware, and building firmware means the
             dev key, which means erase_secrets, which means flag 1 is gone.
 ```
+
+```
+[thu 20:2x] DECISION, azzie's, explicit and informed: flag 1 is not worth keeping on
+            this badge. she has no microscope, IRIS is the only route to it, and she
+            would rather have a badge that is hers. so we build and flash custom
+            firmware, which runs erase_secrets() first and destroys THE_FLAG_1
+            permanently. recorded here because it is irreversible and the reasoning
+            should outlive the conversation.
+            the restore path still exists for the *stock* image:
+            firmware/dumps/dc34-badge-latest.zip is vendor-signed and re-flashable.
+            what cannot be restored is the FT-programmed slot 260 value.
+[thu 20:3x] why the ud2 logo did not appear, from vendor/dc34-console/src/cmds/image.rs
+            rather than guessing: on the 32nd chunk it writes the bitmap to the PDDB
+            key DC34_IMAGE and pokes "_Vault2_" with scalar opcode 1024 arg1=1 to
+            reload. so it is the *vault app's* stored image, shown on one of its
+            pages, not a direct panel blit. it may well be stored correctly and simply
+            not on the page azzie was looking at.
+            separately my packing WAS wrong: the firmware assembles words with
+            u32::from_be_bytes, so bytes are big-endian within each 32-bit word, while
+            I packed little-endian. the fix is to reverse byte order within each
+            4-byte group.
+[thu 20:4x] custom firmware build plan. dc34-console's build.sh is:
+              cargo build --release --target riscv32imac-unknown-xous-elf \
+                --features board-baosec --features bao1x --features oem-baosec-lite \
+                --features utralib/bao1x
+            and `qa-test = []` is a real declared feature. building with it ADDS,
+            from the vendor's own source and with no code written by us:
+              test hue / transmute / mate / autogamy / rate   the LED gene commands
+              test qrshow / qrget / cam / accel / temp / adc  camera, QR, sensors
+            that is the cheapest possible custom firmware and it is what unlocks
+            custom LED colours. riscv32imac-unknown-xous-elf is a tier-3 rust target,
+            so it needs nightly + rust-src + -Z build-std.
+```
