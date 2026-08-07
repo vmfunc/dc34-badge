@@ -124,3 +124,22 @@ format, one line per event, no ceremony:
             recovery is another 6s power hold. after a cold boot the badge is busier
             (lightgene running) and needs much gentler input than it did earlier.
 ```
+
+```
+[thu 18:27] sent `boot` from boot1 to hand control to xous. the badge did NOT come
+            back: "Device not responding to setup address", error -71, retried at
+            FULL speed (it is a high-speed device), device numbers into the 70s.
+            third wedge of the day, and the first one triggered by the boot1->xous
+            transition rather than by console traffic. the same `boot` worked cleanly
+            at 16:53, so it is intermittent, not deterministic.
+            note the speed downgrade: full-speed retries on a HS-capable device mean
+            the link is renegotiating badly, not just that firmware is slow to answer.
+[thu 18:30] consequence worth acting on: with bootwait ENABLED every cold boot lands
+            in boot1, and every boot1->xous transition risks this. we have already
+            taken everything boot1 has to give (audit + the full ifr dump are
+            captured), so bootwait is now pure cost. disable it on the next boot.
+            it spends another one-way increment, but it also means cold boots land
+            straight in a usable xous, and if the counter ever saturates, saturating
+            while DISABLED is the better terminal state: the badge boots normally
+            forever rather than stopping at the bootloader forever.
+```
