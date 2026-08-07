@@ -1,0 +1,10 @@
+(version 1)
+(rule "dp clearance"
+    (constraint clearance (min "0.8mm"))
+    (condition "A.inDiffPair('*') && !AB.isCoupledDiffPair() && B.NetName == 'GND' && B.Type == 'Zone'"))
+
+(rule "Allow Micro Via Stacked on Blind Via"
+    (condition "A.Type == 'via' && B.Type == 'via' && A.Via_Type == 'Micro' && B.Via_Type == 'Blind/Buried' && A.Net == B.Net" )
+    (constraint hole_clearance)
+    (severity ignore)
+)
