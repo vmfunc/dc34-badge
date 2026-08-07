@@ -96,14 +96,18 @@ def readline(ser: serial.Serial, deadline: float) -> str:
     return ""
 
 
-def write_paced(ser: serial.Serial, line: bytes, piece: int = 4, gap: float = 0.01) -> None:
-    """dribble a line out in small pieces.
+def write_paced(ser: serial.Serial, line: bytes, piece: int = 24, gap: float = 0.03) -> None:
+    """write a line in a few sizeable pieces.
 
-    the console feeds its input through the keyboard service, whose buffer is small.
-    a full 96-char base64 line written in one go overflows it and the firmware logs
-    "Input overflow to N, dropping keys!" while silently losing the middle of the
-    line. pacing between lines is not enough once the badge is busy; the pacing has
-    to be inside the line."""
+    two failure modes bracket this. writing the whole line back-to-back with the next
+    one overruns the console's keyboard buffer ("Input overflow to N, dropping keys!").
+    writing a byte at a time is *worse*: each tiny write becomes its own USB packet and
+    the firmware mis-samples it, so `ver` echoes back as `vrr`. corrupted input that
+    still parses is far more dangerous than input that is dropped loudly.
+
+    measured on the badge: 24-byte pieces echo correctly, and the gap between lines is
+    what actually prevents the overflow.
+    """
     for i in range(0, len(line), piece):
         ser.write(line[i:i + piece])
         ser.flush()

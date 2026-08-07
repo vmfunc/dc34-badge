@@ -135,11 +135,74 @@ def frame(index: int, data: bytes) -> str:
     return base64.b64encode(payload + struct.pack(">I", zlib.crc32(payload) & 0xFFFF_FFFF)).decode()
 
 
-def write_paced(ser: serial.Serial, line: bytes, piece: int = 4, gap: float = 0.01) -> None:
+def write_paced(ser: serial.Serial, line: bytes, piece: int = 24, gap: float = 0.03) -> None:
+    """write a line in a few sizeable pieces.
+
+    two failure modes bracket this. writing the whole line back-to-back with the next
+    one overruns the console's keyboard buffer ("Input overflow to N, dropping keys!").
+    writing a byte at a time is *worse*: each tiny write becomes its own USB packet and
+    the firmware mis-samples it, so `ver` echoes back as `vrr`. corrupted input that
+    still parses is far more dangerous than input that is dropped loudly.
+
+    measured on the badge: 24-byte pieces echo correctly, and the gap between lines is
+    what actually prevents the overflow.
+    """
     for i in range(0, len(line), piece):
         ser.write(line[i:i + piece])
         ser.flush()
         time.sleep(gap)
+
+
+def send_chunk(ser: serial.Serial, fb: bytes, idx: int):
+    """offer one chunk, return the verdict once the prompt comes back."""
+    wire = frame(idx, fb[idx * CHUNK:(idx + 1) * CHUNK])
+    ser.reset_input_buffer()
+    write_paced(ser, f"image {wire}\n".encode())
+    deadline = time.time() + 8.0
+    buf = ""
+    verdict = None
+    while time.time() < deadline:
+        got = ser.read(4096)
+        if got:
+            buf += got.decode("utf-8", errors="replace")
+        verdict = _verdict(buf)
+        if verdict and buf.rstrip().endswith("[console]"):
+            break
+    return verdict or "ERR"
+
+
+def _verdict(buf: str):
+    """the device's answer is a line that is *exactly* a token.
+
+    matching a bare substring does not work: the console echoes the command back, and
+    a base64 payload happily contains "OK" or "ERR" inside it. that is what made the
+    failures look random, they tracked the image data rather than the link.
+    """
+    for raw in buf.splitlines():
+        line = raw.strip()
+        if line.startswith("[console]"):
+            line = line[len("[console]"):].strip()
+        if line in ("SUCCESS", "OK", "ERR"):
+            return line
+    return None
+
+
+def resync(ser: serial.Serial, fb: bytes):
+    """find the chunk index the device expects, by offering each in turn.
+
+    an accepted probe also *consumes* that index, so the return value is the next one
+    to send. sending the same image means the chunks already banked from an aborted
+    run are the ones we wanted anyway, so resuming mid-sequence still yields the right
+    framebuffer.
+    """
+    for idx in range(N_CHUNKS):
+        verdict = send_chunk(ser, fb, idx)
+        if verdict == "SUCCESS":
+            return N_CHUNKS
+        if verdict == "OK":
+            return idx + 1
+        time.sleep(0.15)
+    return None
 
 
 def upload(ser: serial.Serial, fb: bytes, delay: float) -> bool:
@@ -151,29 +214,18 @@ def upload(ser: serial.Serial, fb: bytes, delay: float) -> bool:
     time.sleep(0.8)
     ser.read(200_000)
 
+    # not a sequence after all: image_probe showed every index below 32 is accepted
+    # on its own, so an ERR is line corruption rather than a position mismatch. retry
+    # the same index; there is nothing to resynchronise.
     for i in range(N_CHUNKS):
-        piece = fb[i * CHUNK:(i + 1) * CHUNK]
-        wire = frame(i, piece)
         verdict = None
-        for _ in range(3):
-            write_paced(ser, f"image {wire}\n".encode())
-            deadline = time.time() + 5.0
-            buf = ""
-            while time.time() < deadline:
-                got = ser.read(4096)
-                if got:
-                    buf += got.decode("utf-8", errors="replace")
-                for token in ("SUCCESS", "ERR", "OK"):
-                    if token in buf:
-                        verdict = token
-                        break
-                if verdict:
-                    break
+        for _ in range(6):
+            verdict = send_chunk(ser, fb, i)
             if verdict in ("OK", "SUCCESS"):
                 break
-            time.sleep(0.4)
+            time.sleep(0.1)
         if verdict not in ("OK", "SUCCESS"):
-            print(f"error: chunk {i} -> {verdict!r}", file=sys.stderr)
+            print(f"\nerror: chunk {i} rejected after retries", file=sys.stderr)
             return False
         print(f"\r[*] chunk {i + 1}/{N_CHUNKS}", end="", flush=True)
         if verdict == "SUCCESS":

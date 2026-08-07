@@ -143,3 +143,21 @@ format, one line per event, no ceremony:
             while DISABLED is the better terminal state: the badge boots normally
             forever rather than stopping at the bootloader forever.
 ```
+
+```
+[thu 19:0x] ud2 logo upload via `image`. three of my own bugs, then the real cause.
+            mine: (1) byte-at-a-time pacing CORRUPTS input, `ver` echoes as `vrr`,
+            because each tiny write becomes its own usb packet. whole-ish lines
+            (24-byte pieces) echo correctly. (2) matched "ERR"/"OK" as a SUBSTRING of
+            the response, but the console echoes the command back and a base64 payload
+            contains those letters, so failures tracked the image data, not the link.
+            (3) invented a "sequence resync" for a verb that image_probe had already
+            shown is not sequential.
+            the real cause, from finally capturing raw bytes instead of guessing:
+              ERR :bao1x_hal::sh1107: timeout in draw (sh1107.rs:808)
+              INFO:bao_video: resetting display spim block (bao-video/src/main.rs:1083)
+            the OLED's SPI is timing out badge-side and bao-video is resetting the
+            SPIM block. a good chunk answers a clean bare "OK"; a slow one produces
+            that, and the retry cost is what made the upload crawl.
+            so the protocol side is right now and the bottleneck is the panel driver.
+```
