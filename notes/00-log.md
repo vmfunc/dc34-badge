@@ -222,3 +222,27 @@ format, one line per event, no ceremony:
             custom LED colours. riscv32imac-unknown-xous-elf is a tier-3 rust target,
             so it needs nightly + rust-src + -Z build-std.
 ```
+
+```
+[thu 21:0x] custom firmware build, the real recipe (from xous-core/xtask/src/main.rs):
+              cargo xtask install-toolchain     installs the riscv32imac-unknown-xous-elf
+                                                std properly; supersedes my -Z build-std guess
+              cargo xtask baosec-lite [apps]    THE badge target. baosec_common() puts
+                                                ticktimer/log/names/usb-bao1x/hal-service/
+                                                modals/pddb/bao-video in flash, swapper in
+                                                PID2, keystore in PID3, and every extra
+                                                cratespec into the SWAP region.
+            cratespec syntax: bare name = workspace-local crate; "name^ver" = crates.io;
+            "name#url" = prebuilt; anything containing "/" = a prebuilt ELF on disk;
+            "name~swap|flash|ram" pins the region.
+            so an out-of-tree app like dc34-console can go in as a built ELF path,
+            without adding it to the xous workspace.
+[thu 21:1x] two build blockers, both resolved:
+            (1) the vendored copy cannot build in place: dc34-console's Cargo.toml
+                [patch] section redirects every xous dep to ../xous-core/<path>, so it
+                needs xous-core as a SIBLING. build in ~/workspace, keep vendor/ pristine.
+            (2) dc34-console needs keystore feature "owc-inc", which does NOT exist at
+                the rev its Cargo.toml pins (616bf65) nor on origin/main. it exists only
+                on **origin/dev**. the `rev` pin only binds unpatched deps; the [patch]
+                paths expect a current dev checkout. xous-core now at 5d5bbbf (dev).
+```
