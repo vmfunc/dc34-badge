@@ -115,6 +115,14 @@ def test_pattern() -> Image.Image:
 
 
 def pack(img: Image.Image, invert: bool, msb_first: bool) -> bytes:
+    """pack row-major, one bit per pixel, into the firmware's word layout.
+
+    the framebuffer is [u32; 512] and pixel i is bit (i % 32) of word (i / 32),
+    LSB-first, per sh1107.rs. but cmds/image.rs rebuilds each word with
+    `u32::from_be_bytes([d0, d1, d2, d3])`, so within every 4-byte group the byte
+    order is **big-endian**: d0 supplies bits 31..24, not 7..0. packing those four
+    bytes in natural order silently transposes the image in 8-pixel blocks.
+    """
     px = img.load()
     out = bytearray(FB_BYTES)
     for y in range(H):
@@ -125,8 +133,10 @@ def pack(img: Image.Image, invert: bool, msb_first: bool) -> bytes:
             if not on:
                 continue
             i = y * W + x
-            bit = (7 - (i % 8)) if msb_first else (i % 8)
-            out[i // 8] |= 1 << bit
+            word, k = divmod(i, 32)
+            byte_in_word = 3 - (k // 8)          # big-endian within the word
+            bit = (7 - (k % 8)) if msb_first else (k % 8)
+            out[word * 4 + byte_in_word] |= 1 << bit
     return bytes(out)
 
 
