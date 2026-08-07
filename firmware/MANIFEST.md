@@ -12,7 +12,17 @@ sha256sum firmware/dumps/<file> | tee -a firmware/dumps/.sha256
 
 | file | sha256 (first 16) | source | method | date | notes |
 | --- | --- | --- | --- | --- | --- |
-| _example.bin_ | `deadbeefcafe0000` | badge #1 | `picotool save -a` | 2026-08-06 | pre-anything baseline |
+| `dc34-badge-latest.zip` | `17f0f4d08debe248` | ci.betrusted.io | official release download | 2026-08-06 | the shipping firmware, 3,316,160 B |
+| `dc34-badge-latest/loader.uf2` | `916704a57f766b41` | ^ | unzip | 2026-08-06 | 353,280 B |
+| `dc34-badge-latest/swap.uf2` | `54c400cb37da0a87` | ^ | unzip | 2026-08-06 | 2,343,424 B |
+| `dc34-badge-latest/xous.uf2` | `098c2566b8e2fdd9` | ^ | unzip | 2026-08-06 | 6,358,528 B |
+
+> [!wired] this is a *download*, not a dump
+> the badge still cannot be read out. this is the vendor's own signed release, from
+> `https://ci.betrusted.io/releases/latest/baochip/dc34-badge/latest.zip` (mirrored at
+> `https://defcon.org/34b/latest.zip`). it is byte-identical to what ships, and it is
+> signed with a key the badge accepts, which is exactly why re-flashing *this* is safe
+> and flashing anything we build is not.
 
 ## rules
 

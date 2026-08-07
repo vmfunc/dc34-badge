@@ -161,3 +161,31 @@ format, one line per event, no ceremony:
             that, and the retry cost is what made the upload crawl.
             so the protocol side is right now and the bottleneck is the panel driver.
 ```
+
+```
+[thu 19:4x] ud2 logo LANDED. all 32 chunks accepted, "image accepted". the panel only
+            redraws on the final chunk, so every earlier capped run was invisible by
+            design rather than mis-packed.
+[thu 19:5x] I WAS WRONG ABOUT THE FIRMWARE BEING PRIVATE. it is all public, under the
+            `bunnie` org, which I never searched (I checked betrusted-io and baochip).
+            https://defcon.org/34b/ lists everything:
+              bunnie/dc34-console  the REPL, power, LED drivers  <- lightgenes lives here
+              bunnie/dc34-vault    the vault app
+              bunnie/dc34-api      shared api
+              bunnie/dc34-image    OFFICIAL image upload tool (I reimplemented it)
+              bunnie/dc34-bio      OFFICIAL bio upload tool (I reimplemented it too)
+              ci.betrusted.io/releases/latest/baochip/dc34-badge/latest.zip
+            hours of protocol reverse engineering that a single correct search would
+            have skipped. lesson: when a vendor ships an open badge, find the vendor's
+            own link page BEFORE reversing anything.
+[thu 20:0x] LED colours: dc34-console/src/leds.rs shows the strip is 10 LEDs (18 on
+            "uber" badges) on BIO pin 15, driven by a *genetics simulation*: haploid /
+            diploid genes, meiosis, syngamy, mutation, `express`. badges breed light
+            patterns with each other. that is the badge game.
+            but every gene command (`test hue`, `test transmute`, `test autogamy`,
+            `test mate`, `test rate`) is behind `#[cfg(feature = "qa-test")]` and is
+            NOT in the shipped build. confirmed on the badge: all of them fall through
+            to the usage string. so there is no stock console path to custom colours.
+            changing them means building firmware, and building firmware means the
+            dev key, which means erase_secrets, which means flag 1 is gone.
+```
