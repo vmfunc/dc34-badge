@@ -92,3 +92,38 @@ this is a hypothesis with two unproven legs, and neither should be assumed:
 
 - [[the-flag]] for the flag itself and the developer-mode landmine
 - [[hardware]] for the memory map these addresses come from
+
+## applying the aliasing across the whole slot map <2026-08-06 17:10>
+
+if the ACL read index really is `slot >> 1`, then every even/odd pair shares one entry,
+and the interesting pairs are the ones that **straddle a privilege boundary**. walking
+the full map:
+
+| pair | slots | access | straddles? |
+| --- | --- | --- | --- |
+| 0 | `SERIAL_NUMBER` / `UUID` | Open / Open | no |
+| 1 | `IFR_HASH` / `CP_ID` | Open / Open | no |
+| 2 | `BAO1_PUBKEY` / `BAO2_PUBKEY` | All / All | no |
+| 3 | `BETA_PUBKEY` / `DEV_PUBKEY` | All / All | no |
+| **130** | **`THE_FLAG_1` / `COLLATERAL[0]`** | **Fw0 / Fw0** | no |
+| **132** | **`COLLATERAL[3]` (264) / `BOOT1_PK_RECEIPT_SLOT0` (265)** | **Fw0 / Open** | **yes** |
+
+pair 132 is the one that matters structurally: slot 264 is a COLLATERAL key with
+`PartitionAccess::Fw0`, and slot 265 is a boot1 public-key receipt with
+`PartitionAccess::Open`. they share one access-control entry on the read path. if the
+permissive side wins, **slot 264 is readable from an open context and should not be**.
+
+that is a genuine access-control bypass, and it is a *checkable prediction* rather than
+a theory: read slot 264 from an unprivileged context and see whether it answers.
+
+the bad news for us: it yields `COLLATERAL[3]`, not the flag. the flag's own pair (130)
+is Fw0 on both sides, so the aliasing buys nothing there. slot 260 was placed next to
+another Fw0 slot, which reads like the placement was thought about.
+
+it is still worth proving, for two reasons. it is a real finding about the silicon that
+is worth reporting to baochip regardless of the CTF. and if the *write* path can be made
+to land an ACL on the wrong row, the same mechanism could open pair 130.
+
+**blocked on the same thing as everything else:** we have no read primitive from an open
+context. BDMA is filtered, `peek` is absent, and every CPU-side read needs code we cannot
+run without erasing the flag. so this stays a prediction until something else opens.
