@@ -131,15 +131,32 @@ no network at all.
 ## tools
 
 ```
-./tools/serial-log.sh /dev/ttyACM0            # console @ 1000000 8n1, timestamped
-./tools/uf2.py info apps.uf2                  # base address + flags, no guessing
-./tools/uf2.py carve apps.uf2 -o apps.bin     # flatten for ghidra at the right base
-./tools/new-solve.sh some-challenge           # scaffold a challenge dir
-./tools/dump-firmware.sh 01-baseline rp2040   # for other badges. baochip mode refuses
+./tools/console.py "help" "ver"               # talk to the console, refuses fatal verbs
+./tools/bio_upload.py --asm re/scripts/x.S    # assemble + upload a BIO program
+./tools/peek.py 0x603E2080 --words 8          # read memory through a loaded BIO peek
+./tools/sweep.py --range 0x603E0000 0x603F0000  # map which pages BIO may read
+./tools/oled.py --ascii art/ud2.txt           # put a picture on the 128x128 panel
+./tools/ctap.py info                          # talk CTAPHID to the FIDO interface
+./tools/image_probe.py --scan                 # bounds-check the image verb
+./tools/boot1.py                              # drive the bootloader REPL, read-only
+./tools/uf2.py carve apps.uf2 -o apps.bin     # flatten a UF2 for ghidra
+./tools/serial-log.sh /dev/ttyACM0            # raw timestamped console capture
 ```
 
-the console is **1000000 baud**, not 115200. wrong baud looks exactly like "this badge
-has no console", which is how you walk past the most informative surface on the board.
+three things that will bite anyone repeating this:
+
+- the console is **1000000 baud**, not 115200. wrong baud is indistinguishable from
+  "this badge has no console".
+- **writes must be paced inside the line, not just between lines.** console input runs
+  through the keyboard service, whose buffer overflows on a fast full-length line
+  (`Input overflow to N, dropping keys!`) and then takes the whole console silent. every
+  tool here dribbles 4 bytes per 10 ms.
+- **`bio tx` is not a host-to-core path.** it feeds the queue the core pushes *to*, so a
+  value you send comes straight back on `bio rx` without any core seeing it. bake
+  anything a program needs into the program. and a value pushed once is eaten by the
+  badge's own lightgenes loop, so only continuous pushing survives to be read.
+
+`art/ud2.txt` is the ud2 wordmark from ud2.rip, rendered to the panel by `oled.py`.
 
 ---
 
