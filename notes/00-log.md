@@ -266,3 +266,29 @@ format, one line per event, no ceremony:
             -Z build-std and no compiling std from source. my nightly detour was
             unnecessary.
 ```
+
+```
+[thu 21:5x] FULL IMAGE BUILDS. loader.uf2 353,280 bytes, byte-for-byte the same SIZE
+            as the official release's loader.uf2, which is good evidence we are
+            building the same thing. adding dc34-console as a cratespec grew swap.uf2
+            from 24,576 to 780,800, so the prebuilt-ELF cratespec path works.
+[thu 21:5x] and dc34-vault's README carries the OFFICIAL recipe, which I should have
+            looked for before deriving my own:
+              cargo xtask baosec-lite \
+                ../dc34-console/target/riscv32imac-unknown-xous-elf/release/dc34-console~flash \
+                ../dc34-vault/target/riscv32imac-unknown-xous-elf/release/dc34-vault \
+                --no-timestamp --feature usb --kernel-feature debug-proc --no-verify
+            note the console goes in **~flash**, not ~swap as I had it, and the vault
+            takes the default region. also `cargo xtask install-toolkit`, not
+            install-toolchain (they alias to the same arm).
+[thu 21:5x] THE BADGE GAME, from that same README, and it is the real hack:
+            light patterns are mixed between badges by scanning QR codes, and they are
+            "encrypted using a common, shared key across the entire population - if you
+            can extract that key, then you can effectively be a seeder for arbitrary
+            light patterns". every badge starts with a limited colour range and the
+            only sanctioned way to get more colours is to interact with someone who
+            has them.
+            so the intended *software* challenge is key extraction, and it is very
+            likely where the second flag lives. worth returning to: it needs no
+            microscope, unlike flag 1.
+```
