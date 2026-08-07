@@ -292,3 +292,16 @@ format, one line per event, no ceremony:
             likely where the second flag lives. worth returning to: it needs no
             microscope, unlike flag 1.
 ```
+
+```
+[thu 20:30] FLASHED. badge held in boot1 via PROG, volume mounted with
+            `udisksctl mount -b /dev/sda1` (no root needed, polkit allows it for the
+            seat user) at /run/media/quaver/BAOCHIP.
+            wrote loader.uf2 (353,280), xous.uf2 (6,374,912), swap.uf2 (2,343,424),
+            syncing after each. our build = the vendor's build plus dc34-console
+            compiled with --features qa-test.
+            THE_FLAG_1 is gone from this badge as of the first boot of this image:
+            boot1 runs erase_secrets() on a dev-key-signed image before it executes.
+            azzie's decision, made explicitly, recorded earlier.
+            way back: ./tools/flash.sh firmware/dumps/dc34-badge-latest
+```
