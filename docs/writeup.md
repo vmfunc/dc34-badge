@@ -1,9 +1,8 @@
 # dc34 badge .. flag 1
 
-> draft. nothing here goes public until the CTF closes.
 > written during day one, 2026-08-06, from `notes/00-log.md` rather than from memory,
-> and revised at the close of that day. it does not end in a captured flag: see the
-> epilogue for why that was a choice.
+> and revised at the close of that day. public on purpose. it does not end in a captured
+> flag: see the epilogue for why that was a choice.
 
 ## the badge
 

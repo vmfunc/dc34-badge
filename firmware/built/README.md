@@ -40,7 +40,7 @@ spends finite one-way counters, and the last can hang the badge.
 `it/its` beneath it, sparkles in the corners. the original is preserved next to it as
 `dc_logo.rs.orig`. the DEF CON logo is gone.
 
-**3. the developer-mode strip reads `ud2`**, not `DEV MODE` (`dc34-vault/src/ux.rs:875`).
+**3. the developer-mode strip reads `ud2.rip`**, not `DEV MODE` (`dc34-vault/src/ux.rs:875`).
 
 the vault alternates its idle screen between this bitmap and one uploaded through the
 `image` verb every ~3 s, so uploading the ud2 wordmark makes the two cycle.
