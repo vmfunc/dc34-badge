@@ -160,6 +160,43 @@ three things that will bite anyone repeating this:
 
 ---
 
+## building and flashing custom firmware
+
+the badge's own firmware is public and vendored in `vendor/`. building it needs
+`xous-core` as a **sibling** directory (its `[patch]` section redirects every xous
+dependency to `../xous-core/...`), on the **`dev`** branch, not the rev its `Cargo.toml`
+pins: `dc34-console` needs the `keystore` feature `owc-inc`, which exists only on `dev`.
+
+```
+git clone https://github.com/betrusted-io/xous-core && cd xous-core && git checkout dev
+cargo xtask install-toolchain          # fetches a prebuilt riscv32imac-unknown-xous std
+cargo xtask baosec-lite                # the badge target -> loader/xous/swap .uf2
+```
+
+`baosec-lite` is the badge (it matches the `Baosec-lite` USB identity). extra app crates
+are passed as cratespecs: a bare name is a workspace crate, `name^ver` is crates.io,
+`name#url` is prebuilt, **anything containing `/` is a prebuilt ELF on disk**, and
+`name~swap|flash|ram` pins the region. so an out-of-tree app goes in as a built binary
+without joining the xous workspace.
+
+building `dc34-console` with **`--features qa-test`** is the cheapest useful change: it
+enables the vendor's own LED gene commands (`test hue`, `transmute`, `mate`, `autogamy`,
+`rate`) plus camera, QR and sensor commands, none of which ship in the stock build.
+
+then:
+
+```
+# hold PROG while plugging in -> 1d50:6196, BAOCHIP volume appears
+./tools/flash.sh <dir with the .uf2 files>
+# press PROG again to run it
+```
+
+> [!wired] flashing anything not vendor-signed destroys the flag
+> boot1 runs `erase_secrets()` *before* unsigned code executes, wiping `KEY_SLOTS`,
+> and `THE_FLAG_1` (RRAM data slot 260) is in that set. the stock image is restorable
+> with `./tools/flash.sh firmware/dumps/dc34-badge-latest`; the FT-programmed flag
+> value is not.
+
 ## links
 
 - def con 34: https://defcon.org/html/defcon-34/dc-34-index.html
