@@ -96,11 +96,24 @@ def readline(ser: serial.Serial, deadline: float) -> str:
     return ""
 
 
+def write_paced(ser: serial.Serial, line: bytes, piece: int = 4, gap: float = 0.01) -> None:
+    """dribble a line out in small pieces.
+
+    the console feeds its input through the keyboard service, whose buffer is small.
+    a full 96-char base64 line written in one go overflows it and the firmware logs
+    "Input overflow to N, dropping keys!" while silently losing the middle of the
+    line. pacing between lines is not enough once the badge is busy; the pacing has
+    to be inside the line."""
+    for i in range(0, len(line), piece):
+        ser.write(line[i:i + piece])
+        ser.flush()
+        time.sleep(gap)
+
+
 def command(ser: serial.Serial, line: str, expect: tuple[str, ...], timeout: float = 5.0) -> str:
     """send, then drain lines until one matches. the badge emits log lines and
     multi-line acks (pad answers OK *then* SUCCESS), so first-line matching desyncs."""
-    ser.write(line.encode() + b"\n")
-    ser.flush()
+    write_paced(ser, line.encode() + b"\n")
     deadline = time.time() + timeout
     seen = []
     while time.time() < deadline:
@@ -133,9 +146,19 @@ def upload(ser: serial.Serial, code: bytes, pins: str | None, clk: int | None,
         wire = base64.b64encode(make_chunk(i, piece)).decode()
         resp = None
         for attempt in range(4):
-            ser.write(f"bio {wire}\n".encode())
-            ser.flush()
-            resp = readline(ser, time.time() + 5.0)
+            write_paced(ser, f"bio {wire}\n".encode())
+            # drain until an actual verdict. the firmware interleaves log lines
+            # (keyboard overflow warnings, lightgenes chatter) with its replies, and
+            # taking the first line reads one of those as the answer.
+            deadline = time.time() + 5.0
+            resp = None
+            while time.time() < deadline:
+                line = readline(ser, deadline)
+                if not line:
+                    break
+                if line in ("OK", "SUCCESS", "ERR"):
+                    resp = line
+                    break
             if resp in ("OK", "SUCCESS"):
                 break
             time.sleep(0.5)
@@ -164,6 +187,9 @@ def main() -> int:
     ap.add_argument("--port", default=DEFAULT_PORT)
     ap.add_argument("--pins", help="comma or space separated pad numbers")
     ap.add_argument("--clk", type=int, help="quantum clock in Hz")
+    ap.add_argument("--slow", action="store_true",
+                    help="one byte at a time with a long gap; use on a freshly booted "
+                         "badge, whose console wedges under fast input")
     ap.add_argument("--delay", type=float, default=0.2,
                     help="seconds between chunks; the console drops input if pushed too fast")
     ap.add_argument("--listen", type=float, default=0.0,

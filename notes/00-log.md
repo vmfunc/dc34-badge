@@ -102,3 +102,25 @@ format, one line per event, no ceremony:
             BDMA filtered, image bounded, ctap stubbed, no acl-write opcode in the
             keystore, no software reset. boot1 needs a power cycle.
 ```
+
+```
+[thu 17:20] project-sync run. dc34 note reconciled against 21 commits, badger-badge's
+            "not a git repo yet" corrected, daily-log-harvest browser source closed.
+[thu 17:40] bio.h from bio-sim documents the whole reserved-register map we had been
+            half-guessing: x16-x19 fifos, x20 quantum, x26 gpio mask, x27 event mask,
+            x28/x29 set/clear event bits, x30 event status, and x31 = core id in
+            [31:30] plus aclk counter in [29:0]. wrote coreid.S to finally answer
+            which cores execute our uploads.
+[thu 17:55] **REPRODUCIBLE WEDGE.** uploading BIO chunks to a freshly-booted badge
+            overflows the console's input path ("Input overflow to 17, dropping keys!"
+            from the keyboard service) and then the console goes fully silent: usb
+            still enumerated as 1d50:6198, ttyACM0 present, zero bytes out, no reply
+            to a bare newline. this is the second time. the first was the lightgenes
+            warning flood.
+            two real bugs of mine found while chasing it: writes must be paced INSIDE
+            the line, not just between lines, and the chunk loop was taking the first
+            response line rather than draining to a verdict, so a log line got read as
+            the answer. both fixed.
+            recovery is another 6s power hold. after a cold boot the badge is busier
+            (lightgene running) and needs much gentler input than it did earlier.
+```
