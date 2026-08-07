@@ -305,3 +305,40 @@ format, one line per event, no ceremony:
             azzie's decision, made explicitly, recorded earlier.
             way back: ./tools/flash.sh firmware/dumps/dc34-badge-latest
 ```
+
+```
+[thu 20:4x] the badge is HERS now, confirmed on hardware: her card renders on the idle
+            screen, the DEF CON logo is gone, and the developer-mode strip shows our
+            text instead of "DEV MODE".
+            tools/make_badge_art.py regenerates dc34-vault/src/bitmaps/dc_logo.rs from
+            any image (pfp thresholded inside a circle, "vmfunc" set large, "it/its"
+            beneath, sparkles in the corners); the stock bitmap is preserved next to it
+            as dc_logo.rs.orig and a copy of the generated source lives in art/.
+            thresholding over dithering was an experiment, not a guess: the pfp is flat
+            pastel line art and error diffusion turned it to noise.
+            and the feature gating was wrong in the plan above. src/cmds/test.rs has
+            FIVE gates, not one, and `hue` (the LED colour command, the whole reason we
+            built anything) is behind misc-test, not qa-test:
+              misc-test  hue, autogamy, qrshow, qrget, cam, accel, adc, shipmode,
+                         reset, wdt, wup
+              qa-test    rate, transmute, bt, mate
+            so the shipped build is --features qa-test --features misc-test. owc-test,
+            hazardous-test and wfi-stress-test stay off deliberately: the first spends
+            finite one-way counters and the last can hang the badge.
+[thu 20:5x] one-line change in dc34-vault/src/ux.rs:875, the strip now reads "ud2.rip"
+            rather than "ud2". image rebuilt and firmware/built restaged with fresh
+            hashes. NOT YET FLASHED: the build actually running on the badge is the
+            previous one, which says "ud2". costs one PROG hold whenever it is worth
+            interrupting her for four characters.
+[thu 20:5x] state at the close of day one, for whoever reads this at 04:00 on day three:
+            flag 1 is gone from this badge and that was a choice, not an accident. the
+            IRIS route is still the correct answer to that challenge, it just needs a
+            badge nobody has flashed.
+            the live challenge is flag 2, and it is NOT the lightgenes runtime for its
+            own sake. from dc34-vault/README.md: light patterns are traded between
+            badges by scanning QR codes, and the payloads are "encrypted using a common,
+            shared key across the entire population - if you can extract that key, then
+            you can effectively be a seeder for arbitrary light patterns". we now hold
+            the full source of both ends of that exchange, plus a badge running our own
+            build with qrshow/qrget/cam enabled. no microscope required. start there.
+```

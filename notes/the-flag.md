@@ -458,6 +458,37 @@ he told us the attack, the tool, and the pass mark. **flag 1 is meant to be read
 die.** that is IRIS work: decap-free IR imaging of the RRAM array at `0x603E_2080`,
 32 bytes, with ECC repairing the tail.
 
-the second flag, hinted in the same comment, is not in any public source or in the IFR.
-it is most likely in the unpublished `dc34_console` firmware, which reinforces that it is
-the *software* half of the pair and flag 1 is the physical half.
+the second flag, hinted in the same comment, is not a literal in any public source or in
+the IFR. it is the *software* half of the pair, and flag 1 is the physical half.
+
+## correction, and the end of this thread <2026-08-06 evening>
+
+three things above are now wrong, and they are left in place rather than edited out
+because the reasoning that produced them is the useful part.
+
+**0. "unpublished verbs" was a wrong frame throughout.** `image` and `bio` are absent from
+the *public `bao-console`* source, which is what "unpublished" meant here, and that was
+read as "unpublished full stop". they are both perfectly public in
+`vendor/dc34-console/src/cmds/`, and `bio`'s protocol has an official host tool
+(`dc34-bio`). every "this verb exists in no public source" claim above should be read as
+"in no source i had found yet".
+
+**1. "the unpublished `dc34_console` firmware" was never unpublished.** the whole badge
+firmware is public under the [`bunnie`](https://github.com/bunnie) org, linked from
+defcon.org/34b, and is vendored in `../vendor/`. flag 2 is not hiding in a binary we
+cannot read. from `dc34-vault/README.md`, the badge's game is that light patterns are
+bred by a genetics simulation and traded between badges **by scanning QR codes**, with
+the payloads "encrypted using a common, shared key across the entire population - if you
+can extract that key, then you can effectively be a seeder for arbitrary light patterns".
+so flag 2 is key extraction against a population-wide symmetric key. it needs no
+microscope. the `lightgenes` runtime is a means to it, not the target.
+
+**2. flag 1 is gone from this badge, on purpose.** IRIS was its only remaining route,
+there was no microscope, and azzie chose a badge that is hers over a value she could not
+read. custom firmware was flashed on 2026-08-06; boot1 ran `erase_secrets()` before it
+executed. the decision and its reasoning are logged at `[thu 20:2x]` in
+[00-log.md](00-log.md).
+
+everything above this section still stands as an account of the challenge. the closed
+doors were measured, not guessed, and the IRIS conclusion is still the right answer for
+anyone holding an unflashed badge.

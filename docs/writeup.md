@@ -1,7 +1,9 @@
 # dc34 badge .. flag 1
 
 > draft. nothing here goes public until the CTF closes.
-> written during day one, 2026-08-06, from `notes/00-log.md` rather than from memory.
+> written during day one, 2026-08-06, from `notes/00-log.md` rather than from memory,
+> and revised at the close of that day. it does not end in a captured flag: see the
+> epilogue for why that was a choice.
 
 ## the badge
 
@@ -159,11 +161,53 @@ imaging path is the one that works.
 
 ## the second flag
 
-hinted in the same comment and **not** present anywhere in the public tree, nor in the
-1 KiB IFR region (`hw/ifr.bin`, whose only ASCII is the lot code `94912066M06T`). it is
-most likely inside the unpublished `dc34_console` firmware, which fits the split: flag 2
-is the software half of the pair, flag 1 is the physical half. the way in is the
-`lightgenes` runtime, `src/bio/lightgenes/mod.rs`, which we only half-mapped.
+hinted in the same comment, and **not** a literal sitting anywhere: not in the public
+`xous-core` tree, not in the 1 KiB IFR region (`hw/ifr.bin`, whose only ASCII is the lot
+code `94912066M06T`).
+
+the first guess here was that it lived inside an unpublished `dc34_console` firmware.
+**that guess was wrong, and so was its premise.** the badge firmware was public the whole
+time, under the [`bunnie`](https://github.com/bunnie) github org and linked from
+defcon.org/34b. it was found late, after most of a day spent reverse engineering two
+console protocols the vendor already ships host tools for.
+
+with the real sources in hand, `dc34-vault/README.md` says plainly what the badge's game
+is, and it is the software half of the pair:
+
+> light patterns are "encrypted using a common, shared key across the entire population -
+> if you can extract that key, then you can effectively be a seeder for arbitrary light
+> patterns"
+
+patterns are bred by a genetics simulation (haploid/diploid genes, meiosis, syngamy,
+mutation) and traded between badges **by scanning QR codes**. every badge ships with a
+limited colour range and the only sanctioned way to widen it is to meet someone who has
+more. so flag 2 is a **key-extraction problem against a symmetric key shared by every
+badge at the con**, and unlike flag 1 it needs no microscope. the `lightgenes` runtime
+(`src/bio/lightgenes/mod.rs`) is a means to it, not the target; the `test-ws2812`
+reference shows it drives **FIFO1 with event-mask polling**, not the blocking FIFO0 pops
+this repo's first BIO programs were written around.
+
+## epilogue: giving flag 1 up on purpose
+
+this writeup does not end in a flag, and that was a decision rather than a defeat.
+
+IRIS was the only remaining route to slot 260, there was no microscope on hand, and the
+alternative to holding an unreadable value was a badge that was actually mine. so on the
+evening of 2026-08-06 the badge was flashed with a custom build, boot1 ran
+`erase_secrets()` before that image executed, and `THE_FLAG_1` is permanently gone from
+this die.
+
+the build is the vendor's own, reproduced from the recipe in `dc34-vault/README.md`:
+`loader.uf2` and `swap.uf2` came out byte-identical in size to the official release and
+`xous.uf2` larger by exactly the added code, which is the evidence that it *is* bunnie's
+image and not something adjacent. on top of that, two changes: `dc34-console` built with
+`--features qa-test --features misc-test` (the vendor's own LED-gene, camera, QR and
+sensor commands, none of which ship in the stock build), and a custom idle screen
+replacing the DEF CON logo. details and every deviation in `firmware/built/README.md`.
+
+worth being explicit about, since the rest of this document argues the opposite case: the
+IRIS route is still the correct answer to the challenge. it just needs a badge nobody has
+flashed.
 
 ## what i would do differently
 
@@ -177,6 +221,11 @@ is the software half of the pair, flag 1 is the physical half. the way in is the
   "nothing happened", which is an excellent way to draw the wrong conclusion.
 - the badge has a battery. unplugging USB does not power-cycle it, and a wedged firmware
   stays wedged. hold power for 6 s.
+- **i assumed the firmware was private and stopped searching.** i checked `betrusted-io`
+  and `baochip`, found nothing, and treated "unpublished until after the con" as fact for
+  a whole day. it was on `bunnie`, linked from the con's own badge page. two of the tools
+  in this repo are reimplementations of tools the vendor ships. when a vendor ships an
+  open badge, find the vendor's link page before reversing anything.
 
 ## credit
 

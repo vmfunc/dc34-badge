@@ -36,24 +36,34 @@ firmware arrives as **UF2**. hold `PROG` (the button nearest USB) while plugging
 the badge enumerates as a mass storage volume named `BAOCHIP`, you copy UF2 files on,
 press `PROG` again to run.
 
-three artifacts, from `cargo xtask dabao` in xous-core, built for
-`riscv32imac-unknown-xous-elf`:
+three artifacts, from **`cargo xtask baosec-lite`** in xous-core (not `dabao`, which is
+the dev board), built for `riscv32imac-unknown-xous-elf`:
 
 - `loader.uf2`
 - `xous.uf2`
-- `apps.uf2`
+- `swap.uf2`
 
-first flash takes all three; after that only `apps.uf2` if the kernel is unchanged.
+there is no `apps.uf2` on this target: apps are placed into the flash or swap region by
+cratespec at image-build time, so a change to an app means rebuilding and rewriting
+`xous.uf2` / `swap.uf2`, not dropping in a separate app blob. `tools/flash.sh` writes
+whichever of the three are present in the directory you point it at, syncing after each.
 
 **UF2 mass storage is a write path, not a read path.** there is no `picotool save`
 equivalent here. so:
 
 - you cannot take a baseline dump of the shipped image before touching it.
-- copying `apps.uf2` over the stock app **destroys the CTF challenge on that badge**,
-  and the stock firmware is not published until after the con.
+- writing an unsigned image **destroys the CTF challenge on that badge**, because boot1
+  runs `erase_secrets()` before it executes.
 - `tools/dump-firmware.sh baochip` exists solely to stop you doing this by reflex.
 
-if we want our own code *and* the challenge, that is two badges, not one.
+what redeems the situation, found late: **the stock firmware is published.** the sources
+are under the [`bunnie`](https://github.com/bunnie) org and the vendor-signed release
+zip is on ci.betrusted.io, both linked from defcon.org/34b. so the *image* is restorable
+(`./tools/flash.sh firmware/dumps/dc34-badge-latest`) even though the badge cannot be
+read out. what is not restorable is the FT-programmed value in slot 260.
+
+so wanting our own code *and* the flag is still two badges, not one. this badge was
+deliberately made the former on 2026-08-06.
 
 ## console
 
@@ -149,9 +159,12 @@ fill from the physical badge. photograph both sides into `hw/` first.
 
 ## debug interfaces
 
-- **jtag:** unconfirmed on the badge. the RTL is public, so whether a debug module is
-  instantiated and whether it is fused off is a *readable* question, not a guessable one.
-- **usb:** capture `lsusb -v` output into this file on first plug.
+- **jtag: fused off.** confirmed 2026-08-06 against `secboot.rs`'s hardcoded IFR
+  reference: the bytes at `0x6040_0180` read `00 00 00 00 82 8c 42 6a 00 ...`, matching
+  exactly, which is the check that asserts the Cortex-M7 and hardware debug are both
+  disabled. full IFR dump in `hw/ifr.bin`. this was a *readable* question, not a
+  guessable one, which is the whole advantage of an open chip.
+- **usb:** captured, `hw/usb-descriptors.txt`. see the section above.
 
 ## the order to work in
 

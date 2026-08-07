@@ -1,11 +1,18 @@
 # dc34 badge
 
 def con 34, august 6-9 2026, las vegas convention center west hall.
-notes, dumps, tooling and solves for the badge and its embedded CTF challenge.
+notes, images, tooling and solves for the badge and its embedded CTF challenge.
 
 everything here is written for one reader: me, at 04:00 on day three, having slept
 four hours since tuesday. so it is blunt, it is timestamped, and it assumes past-me
 was an unreliable narrator who wrote things down anyway.
+
+> **where this is up to, end of day one.** flag 1 (RRAM data slot 260) is an IRIS
+> microscopy challenge, and it was given up on purpose: no microscope, so the badge was
+> flashed with our own build and the slot is erased. flag 2 is live and needs no
+> microscope, it is the population-wide key encrypting the QR-traded light patterns.
+> one real silicon finding along the way, an ACL read-index aliasing in `rrc.sv`.
+> [jump to the state of the challenge](#the-state-of-the-challenge).
 
 ---
 
@@ -25,8 +32,19 @@ guessing the peripheral map from a disassembly, you read the verilog.
 | security | TRNG, crypto accelerators, secure mesh, **glitch sensors**, hardware key slots, one-way counters |
 | add-ons | SAO v2.0 |
 
-defcon.org: *"a hardware CTF challenge is embedded in the badge firmware."* the stock
-firmware is not published until after the con.
+defcon.org: *"a hardware CTF challenge is embedded in the badge firmware."*
+
+**the firmware is public, and it was public the whole time.** it lives under the
+[`bunnie`](https://github.com/bunnie) github org, linked from
+[defcon.org/34b](https://defcon.org/34b/): `dc34-console` (the REPL, power and LED
+drivers), `dc34-vault` (the app), `dc34-api`, and the official `dc34-image` /
+`dc34-bio` host tools. signed release zips are on ci.betrusted.io. all six are vendored
+in [`vendor/`](vendor/) with provenance and licence status stated per repo.
+
+this repo spent most of a day reverse engineering two console protocols that the vendor
+already ships tools for, because the search stopped at `betrusted-io` and `baochip`. so:
+**when a vendor ships an open badge, find the vendor's own link page before reversing
+anything.**
 
 full detail, and the parts that are still unconfirmed, in [notes/hardware.md](notes/hardware.md).
 
@@ -36,16 +54,29 @@ full detail, and the parts that are still unconfirmed, in [notes/hardware.md](no
 
 self-imposed, not negotiable. every one exists because someone lost a badge or a day.
 
-1. **do not flash this badge, and never enter developer mode.** the flag is RRAM data
-   slot 260, written once at final test, and it is a member of `KEY_SLOTS`: the set of
-   keys **erased on entry to developer mode**. developer mode is what running unsigned
-   code requires. so flashing destroys this badge's flag permanently, with nothing to
-   restore it from. our own code *and* the challenge means two badges, not one. chapter
-   and verse in [notes/the-flag.md](notes/the-flag.md). the UF2 bootloader is a write
-   path with no readback either way, and `tools/dump-firmware.sh baochip` refuses on
-   purpose.
-2. **read the source before the disassembly.** the RTL is public and xous is public.
-   on an open chip, reversing something you could have read is self-inflicted.
+1. ~~**do not flash this badge, and never enter developer mode.**~~ **retired on
+   2026-08-06, deliberately.** it stood for the whole first day and it was right: the
+   flag is RRAM data slot 260, written once at final test, and it is a member of
+   `KEY_SLOTS`, the set of keys **erased on entry to developer mode**. developer mode is
+   what running unsigned code requires, so flashing does not *risk* the flag, it
+   destroys it, with nothing to restore it from. chapter and verse in
+   [notes/the-flag.md](notes/the-flag.md).
+
+   it was retired because the rule had done its job and the answer it protected was one
+   we could not use: every software route to slot 260 was measured and closed (see
+   below), leaving IRIS microscopy, and there was no microscope. so the badge was
+   flashed on purpose with our own build, and `THE_FLAG_1` is gone from it. the reasoning
+   is logged at `[thu 20:2x]` in [notes/00-log.md](notes/00-log.md), and the rule stays
+   written here rather than deleted, because anyone repeating this with a badge they
+   still want the flag on needs to read it first.
+
+   the UF2 bootloader is a write path with no readback either way, and
+   `tools/dump-firmware.sh baochip` still refuses on purpose. `tools/flash.sh` is the
+   deliberate path and it demands a typed confirmation.
+2. **read the source before the disassembly, and find *all* of it first.** the RTL is
+   public, xous is public, and so is the badge firmware. on an open chip, reversing
+   something you could have read is self-inflicted. this rule was in place from day one
+   and still got broken, because the search stopped one github org too early.
 3. **passive before active.** console and usb descriptors before you write anything,
    receive before you transmit. this is a con floor, not a lab.
 4. **hash everything you do capture, at capture time.** a blob with no hash and no date
@@ -66,22 +97,31 @@ self-imposed, not negotiable. every one exists because someone lost a badge or a
 notes/          the thinking. hand-written, append-only where it says so.
   00-log.md     running log, newest at bottom, timestamped. the spine.
   leads.md      hypothesis queue, ranked. dead leads kept, struck through.
+  the-flag.md   flag 1: the address, the landmine, and every closed door, measured.
+  acl-aliasing.md  the one real silicon bug: the ACL read index collapses to slot >> 1.
   hardware.md   the baochip: what's confirmed, what isn't, and the bootloader trap.
-  firmware.md   image layout, load address, strings, crypto. the understanding.
+  firmware.md   where the images come from, how they're laid out, what runs when.
   rf.md         bands, modulation, frame format, capture workflow.
+
+vendor/         the six official `bunnie` dc34 repos, vendored. provenance + licence
+                status stated per repo. never edited in place: the build wants
+                `xous-core` as a sibling, not this copy.
 
 firmware/
   MANIFEST.md   the ledger. every blob, hashed, dated, provenance stated.
-  dumps/        raw images. committed when small, immutable once written.
+  dumps/        vendor-signed release images. downloads, not dumps, and labelled so.
+  built/        our own build + README with the recipe and every deviation from stock.
   extracted/    binwalk output. gitignored, regenerable from the dump.
 
 re/
-  scripts/      loaders, parsers, openocd.cfg, ghidra headless scripts.
+  scripts/      loaders, parsers, BIO programs (.S), ghidra headless scripts.
   ghidra/       project state. gitignored, merge-hostile, regenerable.
   strings/      raw strings/entropy dumps. interesting ones get promoted to notes/.
 
+art/            what goes on the badge: the ud2 wordmark, the generated card source.
 captures/       logic/, rf/, uart/. gitignored (big), hashed in a sibling manifest.
-hw/             photographs of the board. both sides, high res, before any rework.
+hw/             observed state: usb descriptors, the boot1 audit, the IFR dump.
+                photographs of the board go here too, both sides, before any rework.
 solves/         one dir per challenge. _template/ is the shape.
 tools/          host-side scripts. all of them safe to run half asleep.
 docs/           the writeup, drafted as we go rather than from memory on sunday.
@@ -136,11 +176,17 @@ no network at all.
 ./tools/peek.py 0x603E2080 --words 8          # read memory through a loaded BIO peek
 ./tools/sweep.py --range 0x603E0000 0x603F0000  # map which pages BIO may read
 ./tools/oled.py --ascii art/ud2.txt           # put a picture on the 128x128 panel
+./tools/leds.py --palette rose-pine           # recolour the strip through the running
+                                              #   lightgene: no upload, no flashing
 ./tools/ctap.py info                          # talk CTAPHID to the FIDO interface
 ./tools/image_probe.py --scan                 # bounds-check the image verb
 ./tools/boot1.py                              # drive the bootloader REPL, read-only
-./tools/uf2.py carve apps.uf2 -o apps.bin     # flatten a UF2 for ghidra
+./tools/uf2.py carve xous.uf2 -o xous.bin     # flatten a UF2 for ghidra
 ./tools/serial-log.sh /dev/ttyACM0            # raw timestamped console capture
+./tools/make_badge_art.py --pfp me.png \
+  --out .../src/bitmaps/dc_logo.rs            # regenerate the vault's idle bitmap
+./tools/flash.sh firmware/built               # write UF2s to boot1. IRREVERSIBLE,
+                                              #   demands a typed confirmation
 ```
 
 three things that will bite anyone repeating this:
@@ -167,21 +213,49 @@ the badge's own firmware is public and vendored in `vendor/`. building it needs
 dependency to `../xous-core/...`), on the **`dev`** branch, not the rev its `Cargo.toml`
 pins: `dc34-console` needs the `keystore` feature `owc-inc`, which exists only on `dev`.
 
+the recipe below is the vendor's own, from `vendor/dc34-vault/README.md`, not one we
+derived. run it from inside `xous-core`, with `dc34-console` and `dc34-vault` as
+siblings:
+
 ```
 git clone https://github.com/betrusted-io/xous-core && cd xous-core && git checkout dev
-cargo xtask install-toolchain          # fetches a prebuilt riscv32imac-unknown-xous std
-cargo xtask baosec-lite                # the badge target -> loader/xous/swap .uf2
+git tag v0.10.1                        # see below: the signer needs a describable tag
+cargo xtask install-toolkit            # fetches a prebuilt riscv32imac-unknown-xous std
+cargo xtask baosec-lite \
+  ../dc34-console/target/riscv32imac-unknown-xous-elf/release/dc34-console~flash \
+  ../dc34-vault/target/riscv32imac-unknown-xous-elf/release/dc34-vault \
+  --no-timestamp --feature usb --kernel-feature debug-proc --no-verify
 ```
 
 `baosec-lite` is the badge (it matches the `Baosec-lite` USB identity). extra app crates
 are passed as cratespecs: a bare name is a workspace crate, `name^ver` is crates.io,
 `name#url` is prebuilt, **anything containing `/` is a prebuilt ELF on disk**, and
 `name~swap|flash|ram` pins the region. so an out-of-tree app goes in as a built binary
-without joining the xous workspace.
+without joining the xous workspace. note the console goes in `~flash` and the vault takes
+the default region.
 
-building `dc34-console` with **`--features qa-test`** is the cheapest useful change: it
-enables the vendor's own LED gene commands (`test hue`, `transmute`, `mate`, `autogamy`,
-`rate`) plus camera, QR and sensor commands, none of which ship in the stock build.
+**the git tag is not optional.** `xous-create-image` stamps a version from `git describe`,
+so a shallow or tagless checkout dies in the swap signer with *"Can't sign swap image:
+SemVer::from_git: no major version"*, a message that discards its own cause. the badge's
+own `audit` reports `v0.10.1-0-gbcfdca404`, so the tag shape is real.
+
+**the console's test commands sit behind five separate feature gates, not one**, and the
+LED colour command is behind the second of them:
+
+| feature | unlocks |
+| --- | --- |
+| `misc-test` | **`hue`**, `autogamy`, `qrshow`, `qrget`, `cam`, `accel`, `adc`, `shipmode`, `reset`, `wdt`, `wup` |
+| `qa-test` | `rate`, `transmute`, `bt`, `mate` |
+
+so `--features qa-test --features misc-test`. `owc-test`, `hazardous-test` and
+`wfi-stress-test` stay off on purpose: the first spends finite one-way counters, the last
+can hang the badge.
+
+**sizes are the reproducibility proof.** ours came out with `loader.uf2` and `swap.uf2`
+byte-identical in size to the official release and `xous.uf2` larger by exactly the code
+added. that is how you know you built the vendor's image and not something adjacent.
+the exact numbers, and every deviation from stock, are in
+[firmware/built/README.md](firmware/built/README.md).
 
 then:
 
@@ -191,11 +265,53 @@ then:
 # press PROG again to run it
 ```
 
-> [!wired] flashing anything not vendor-signed destroys the flag
+> [!wired] flashing anything not vendor-signed destroys the flag, and it already has
 > boot1 runs `erase_secrets()` *before* unsigned code executes, wiping `KEY_SLOTS`,
-> and `THE_FLAG_1` (RRAM data slot 260) is in that set. the stock image is restorable
-> with `./tools/flash.sh firmware/dumps/dc34-badge-latest`; the FT-programmed flag
-> value is not.
+> and `THE_FLAG_1` (RRAM data slot 260) is in that set. this badge was flashed on
+> 2026-08-06, so its slot 260 is erased. the stock image is restorable with
+> `./tools/flash.sh firmware/dumps/dc34-badge-latest`; the FT-programmed flag value is
+> not, and never will be.
+
+---
+
+## the state of the challenge
+
+**flag 1 is a physical challenge, and it is off the table on this badge.** every
+software route to slot 260 was measured on hardware, not inferred, and every one is
+closed by a *different* deliberate mechanism: the BIO BDMA whitelist is entirely empty
+(and a filtered read is redirected to a gutter address, not rejected, so it *looks*
+like it succeeded), boot1's `peek` refuses the address range **and** is compiled out of
+the shipped build, `image` is a bounded 2048-byte framebuffer with no OOB, CTAPHID is
+an INIT-only stub whose advertised capabilities are a lie, the keystore exposes no
+ACL-write opcode, and JTAG is fused off. what is left is IRIS: infrared imaging of the
+RRAM array, which the badge is *packaged* for, with a ~$180 kit and >97% readout
+accuracy (on-die ECC repairs the rest). the full argument is in
+[docs/writeup.md](docs/writeup.md) and [notes/the-flag.md](notes/the-flag.md).
+
+**flag 2 is the live one, and it needs no microscope.** from
+`vendor/dc34-vault/README.md`, the badge's actual game: light patterns are bred by a
+genetics simulation and traded between badges **by scanning QR codes**, and those
+payloads are
+
+> "encrypted using a common, shared key across the entire population - if you can
+> extract that key, then you can effectively be a seeder for arbitrary light patterns"
+
+every badge starts with a limited colour range and the only sanctioned way to widen it
+is to meet someone who has more. so the intended software challenge is key extraction,
+we hold the full source of both ends of the exchange, and this badge is now running a
+build with `qrshow` / `qrget` / `cam` enabled. that is where to start.
+
+**one real silicon finding fell out along the way.** `rrc.sv` derives the ACL index
+differently on its read and write paths (`haddr[16:6]` versus
+`{haddr[13:5], acram_idx}`), so with 32-byte data slots the read index collapses to
+`slot >> 1` and **two adjacent slots share one access-control entry**. slot 260
+(`THE_FLAG_1`) pairs with 261 (`COLLATERAL[0]`, the region designed to be written by
+third parties), and pair 132 is worse: slot 264 (`COLLATERAL[3]`, `Fw0`) shares its
+entry with slot 265 (`BOOT1_PK_RECEIPT_SLOT0`, `Open`), so if the permissive side wins
+an `Fw0` key is readable from an open context. it did not turn into an exploit here,
+but it is arithmetic,
+checkable without hardware, and worth disclosing to baochip regardless of the CTF.
+[notes/acl-aliasing.md](notes/acl-aliasing.md).
 
 ## links
 
